@@ -1,0 +1,47 @@
+# --- Gradle ---
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# --- Secretos y configuración local (CLAUDE.md: nunca en Git) ---
+local.properties
+keystore.properties
+*.jks
+*.keystore
+google-services.json
+*.pem
+
+# --- Salidas de compilación ---
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.cxx/
+output-metadata.json
+
+# --- Android Studio / IntelliJ ---
+.idea/
+*.iml
+.navigation/
+
+# --- VS Code ---
+.vscode/
+
+# --- Respaldos y datos de prueba (datos personales) ---
+*.db
+*.db-shm
+*.db-wal
+backup*.json
+
+# --- Claude Code (config local) ---
+.claude/settings.local.json
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Logs ---
+*.log
+hs_err_pid*
