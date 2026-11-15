@@ -86,6 +86,20 @@ class TaskDaoTest {
     }
 
     @Test
+    fun observeByDate_incluyeTareasRecurrentesConFechaAnteriorYExcluyeSimplesDeOtroDia() {
+        runBlocking {
+            val recurrente = tarea(title = "Recurrente", date = 19000L, startMinutes = 8 * 60)
+                .copy(recurrenceType = "DAILY")
+            dao.insert(recurrente)
+            dao.insert(tarea(title = "Simple de otro día", date = 19001L))
+
+            val tareasDelDia = dao.observeByDate(19010L).first()
+
+            assertThat(tareasDelDia.map { it.title }).containsExactly("Recurrente")
+        }
+    }
+
+    @Test
     fun softDelete_marcaStatusBorradoYNoApareceEnConsultas() {
         runBlocking {
             val id = dao.insert(tarea(title = "A borrar"))

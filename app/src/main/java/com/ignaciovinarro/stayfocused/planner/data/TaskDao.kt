@@ -21,7 +21,14 @@ interface TaskDao {
     @Query("SELECT * FROM task WHERE id = :id AND status = 0")
     suspend fun getById(id: Long): TaskEntity?
 
-    @Query("SELECT * FROM task WHERE status = 0 AND date = :date ORDER BY startMinutes IS NULL, startMinutes")
+    // Para una fecha, trae las tareas simples de ese día y, además, todas las tareas recurrentes
+    // cuyo inicio ya pasó (pueden tener ocurrencia ese día; `occursOn` decide cuáles exactamente).
+    @Query(
+        "SELECT * FROM task WHERE status = 0 AND (" +
+            "(recurrenceType IS NULL AND date = :date) OR " +
+            "(recurrenceType IS NOT NULL AND date <= :date)" +
+            ") ORDER BY startMinutes IS NULL, startMinutes"
+    )
     fun observeByDate(date: Long): Flow<List<TaskEntity>>
 
     @Query(

@@ -13,6 +13,7 @@ data class TimelineBlock(
     val iconKey: String,
     val colorKey: String,
     val completed: Boolean,
+    val movable: Boolean = true, // si se puede mover/redimensionar arrastrando (PL-07)
     val route: String // pantalla que se abre al tocar el bloque
 )
 

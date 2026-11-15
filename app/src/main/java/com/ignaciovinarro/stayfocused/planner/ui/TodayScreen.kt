@@ -1,6 +1,7 @@
 package com.ignaciovinarro.stayfocused.planner.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -30,12 +32,15 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -48,15 +53,20 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.ignaciovinarro.stayfocused.R
 import com.ignaciovinarro.stayfocused.core.timeline.PositionedTimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineBlock
+import com.ignaciovinarro.stayfocused.core.timeline.clampDurationMinutes
+import com.ignaciovinarro.stayfocused.core.timeline.clampStartMinutes
 import com.ignaciovinarro.stayfocused.core.ui.TimePickerDialog
 import com.ignaciovinarro.stayfocused.core.ui.colorForKey
 import com.ignaciovinarro.stayfocused.core.ui.iconForKey
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
+import com.ignaciovinarro.stayfocused.planner.domain.TIMELINE_SOURCE_PLANNER
 import java.time.LocalTime
+import kotlin.math.roundToInt
 
 private val MINUTE_HEIGHT: Dp = 1.dp // 60 dp por hora
 private val HOUR_LABEL_WIDTH: Dp = 48.dp
 private val MIN_BLOCK_HEIGHT: Dp = 48.dp // área táctil mínima (CLAUDE.md)
+private val RESIZE_HANDLE_HEIGHT: Dp = 16.dp
 private const val HOURS_IN_DAY = 24
 private const val MINUTES_IN_HOUR = 60
 
@@ -100,7 +110,9 @@ fun TodayScreen(
                         PositionedBlocks(
                             blocks = uiState.positionedBlocks,
                             availableWidth = availableWidth,
-                            onToggleComplete = viewModel::onToggleComplete
+                            onToggleComplete = viewModel::onToggleComplete,
+                            onMoveTask = viewModel::onMoveTask,
+                            onResizeTask = viewModel::onResizeTask
                         )
                         NowMarker(nowMinutes = uiState.nowMinutes)
                     }
@@ -198,27 +210,85 @@ private fun HourScale() {
 private fun PositionedBlocks(
     blocks: List<PositionedTimelineBlock>,
     availableWidth: Dp,
-    onToggleComplete: (TimelineBlock) -> Unit
+    onToggleComplete: (TimelineBlock) -> Unit,
+    onMoveTask: (TimelineBlock, Int) -> Unit,
+    onResizeTask: (TimelineBlock, Int) -> Unit
 ) {
+    val density = LocalDensity.current
+    // Mientras se arrastra un bloque, se muestra esta posición/duración provisoria en vez de la
+    // que todavía tiene en la base; se limpia al soltar, cuando el ViewModel ya confirmó el cambio.
+    val startOverrides = remember { mutableStateMapOf<String, Int>() }
+    val durationOverrides = remember { mutableStateMapOf<String, Int>() }
+
     blocks.forEach { positioned ->
         val block = positioned.block
+        // Las ocurrencias de tareas recurrentes todavía no se pueden mover/redimensionar
+        // (eso tocaría overrideStartMinutes de la ocurrencia puntual, un paso aparte).
+        val canDrag = block.source == TIMELINE_SOURCE_PLANNER && block.movable
+        val startMinutes = startOverrides[block.id] ?: block.startMinutes
+        val durationMinutes = durationOverrides[block.id] ?: block.durationMinutes
         val columnWidth = availableWidth / positioned.columnCount
-        val height = (MINUTE_HEIGHT * block.durationMinutes).coerceAtLeast(MIN_BLOCK_HEIGHT)
+        val height = (MINUTE_HEIGHT * durationMinutes).coerceAtLeast(MIN_BLOCK_HEIGHT)
 
-        TimelineBlockCard(
-            title = block.title,
-            iconKey = block.iconKey,
-            colorKey = block.colorKey,
-            completed = block.completed,
-            onToggleComplete = { onToggleComplete(block) },
+        Box(
             modifier = Modifier
                 .offset(
                     x = HOUR_LABEL_WIDTH + columnWidth * positioned.column,
-                    y = MINUTE_HEIGHT * block.startMinutes
+                    y = MINUTE_HEIGHT * startMinutes
                 )
                 .width(columnWidth)
                 .height(height)
-        )
+        ) {
+            TimelineBlockCard(
+                title = block.title,
+                iconKey = block.iconKey,
+                colorKey = block.colorKey,
+                completed = block.completed,
+                onToggleComplete = { onToggleComplete(block) },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (canDrag) {
+                            Modifier.pointerInput(block.id) {
+                                var arrastreMinutos = block.startMinutes
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = { arrastreMinutos = block.startMinutes },
+                                    onDragEnd = {
+                                        onMoveTask(block, arrastreMinutos)
+                                        startOverrides.remove(block.id)
+                                    },
+                                    onDragCancel = { startOverrides.remove(block.id) },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val deltaMinutos = with(density) { dragAmount.y.toDp() }.value.roundToInt()
+                                        arrastreMinutos = clampStartMinutes(arrastreMinutos + deltaMinutos, durationMinutes)
+                                        startOverrides[block.id] = arrastreMinutos
+                                    }
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+            )
+
+            if (canDrag) {
+                ResizeHandle(
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    onResize = { nuevaDuracion ->
+                        durationOverrides[block.id] = nuevaDuracion
+                    },
+                    onResizeEnd = { nuevaDuracion ->
+                        onResizeTask(block, nuevaDuracion)
+                        durationOverrides.remove(block.id)
+                    },
+                    onResizeCancel = { durationOverrides.remove(block.id) },
+                    density = density,
+                    startMinutes = startMinutes,
+                    initialDurationMinutes = durationMinutes
+                )
+            }
+        }
     }
 }
 
@@ -259,6 +329,48 @@ private fun TimelineBlockCard(
                 style = MaterialTheme.typography.labelMedium
             )
         }
+    }
+}
+
+// Asa para redimensionar (cambiar la duración) arrastrando el borde inferior del bloque.
+@Composable
+private fun ResizeHandle(
+    modifier: Modifier,
+    onResize: (Int) -> Unit,
+    onResizeEnd: (Int) -> Unit,
+    onResizeCancel: () -> Unit,
+    density: androidx.compose.ui.unit.Density,
+    startMinutes: Int,
+    initialDurationMinutes: Int
+) {
+    val description = stringResource(R.string.a11y_resize_task)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(RESIZE_HANDLE_HEIGHT)
+            .semantics { contentDescription = description }
+            .pointerInput(startMinutes) {
+                var arrastreDuracion = initialDurationMinutes
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { arrastreDuracion = initialDurationMinutes },
+                    onDragEnd = { onResizeEnd(arrastreDuracion) },
+                    onDragCancel = { onResizeCancel() },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val deltaMinutos = with(density) { dragAmount.y.toDp() }.value.roundToInt()
+                        arrastreDuracion = clampDurationMinutes(arrastreDuracion + deltaMinutos, startMinutes)
+                        onResize(arrastreDuracion)
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.DragHandle,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.height(RESIZE_HANDLE_HEIGHT)
+        )
     }
 }
 

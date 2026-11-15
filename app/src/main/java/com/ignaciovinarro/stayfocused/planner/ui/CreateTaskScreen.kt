@@ -1,6 +1,7 @@
 package com.ignaciovinarro.stayfocused.planner.ui
 
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,11 +21,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -48,6 +53,9 @@ import com.ignaciovinarro.stayfocused.R
 import com.ignaciovinarro.stayfocused.core.ui.TaskColorKey
 import com.ignaciovinarro.stayfocused.core.ui.TaskIconKey
 import com.ignaciovinarro.stayfocused.core.ui.TimePickerDialog
+import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
+import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -63,6 +71,7 @@ fun CreateTaskScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showRecurrenceEndPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -123,6 +132,16 @@ fun CreateTaskScreen(
                 label = { Text(stringResource(R.string.create_task_field_duration)) },
                 modifier = Modifier.fillMaxWidth()
             )
+
+            HorizontalDivider()
+
+            if (uiState.hasStartTime) {
+                RecurrenceSection(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onShowRecurrenceEndPicker = { showRecurrenceEndPicker = true }
+                )
+            }
 
             Text(stringResource(R.string.create_task_field_icon), style = MaterialTheme.typography.labelLarge)
             Row(
@@ -205,6 +224,26 @@ fun CreateTaskScreen(
             }
         ) { TimePicker(state = timePickerState) }
     }
+
+    if (showRecurrenceEndPicker) {
+        val recurrenceEndPickerState = rememberDatePickerState(
+            initialSelectedDateMillis = uiState.recurrenceEnd.toEpochMillisUtc()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showRecurrenceEndPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    recurrenceEndPickerState.selectedDateMillis?.let { millis ->
+                        viewModel.onRecurrenceEndChange(millis.toLocalDateUtc())
+                    }
+                    showRecurrenceEndPicker = false
+                }) { Text(stringResource(R.string.action_done)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRecurrenceEndPicker = false }) { Text(stringResource(R.string.action_cancel)) }
+            }
+        ) { DatePicker(state = recurrenceEndPickerState) }
+    }
 }
 
 private fun LocalDate.toEpochMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
@@ -233,6 +272,117 @@ private fun IconOption(icon: TaskIconKey, selected: Boolean, onClick: () -> Unit
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecurrenceSection(
+    uiState: CreateTaskUiState,
+    viewModel: CreateTaskViewModel,
+    onShowRecurrenceEndPicker: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(stringResource(R.string.create_task_recurrence_enable))
+            Switch(checked = uiState.recurrenceEnabled, onCheckedChange = viewModel::onRecurrenceEnabledChange)
+        }
+
+        if (uiState.recurrenceEnabled) {
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                RecurrenceType.entries.forEach { type ->
+                    RecurrenceTypeRow(
+                        type = type,
+                        selected = uiState.recurrenceType == type,
+                        onClick = { viewModel.onRecurrenceTypeChange(type) }
+                    )
+                }
+            }
+
+            when (uiState.recurrenceType) {
+                RecurrenceType.SPECIFIC_DAYS -> {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        daysOfWeekOrdenados().forEach { day ->
+                            val selected = (uiState.recurrenceDays and dayOfWeekBit(day)) != 0
+                            FilterChip(
+                                selected = selected,
+                                onClick = { viewModel.onRecurrenceDayToggle(day) },
+                                label = { Text(dayShortLabel(day)) }
+                            )
+                        }
+                    }
+                }
+                RecurrenceType.EVERY_N_DAYS -> {
+                    OutlinedTextField(
+                        value = uiState.recurrenceInterval.toString(),
+                        onValueChange = { value -> value.toIntOrNull()?.let(viewModel::onRecurrenceIntervalChange) },
+                        label = { Text(stringResource(R.string.create_task_recurrence_interval)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                RecurrenceType.DAILY, RecurrenceType.WEEKLY, RecurrenceType.MONTHLY -> Unit
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(stringResource(R.string.create_task_recurrence_has_end))
+                Switch(checked = uiState.hasRecurrenceEnd, onCheckedChange = viewModel::onHasRecurrenceEndChange)
+            }
+
+            if (uiState.hasRecurrenceEnd) {
+                OutlinedButton(onClick = onShowRecurrenceEndPicker, modifier = Modifier.fillMaxWidth()) {
+                    Text("${stringResource(R.string.create_task_recurrence_end_date)}: ${uiState.recurrenceEnd}")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecurrenceTypeRow(type: RecurrenceType, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = onClick)
+        Text(recurrenceTypeLabel(type))
+    }
+}
+
+@Composable
+private fun recurrenceTypeLabel(type: RecurrenceType): String = when (type) {
+    RecurrenceType.DAILY -> stringResource(R.string.create_task_recurrence_type_daily)
+    RecurrenceType.WEEKLY -> stringResource(R.string.create_task_recurrence_type_weekly)
+    RecurrenceType.SPECIFIC_DAYS -> stringResource(R.string.create_task_recurrence_type_specific_days)
+    RecurrenceType.MONTHLY -> stringResource(R.string.create_task_recurrence_type_monthly)
+    RecurrenceType.EVERY_N_DAYS -> stringResource(R.string.create_task_recurrence_type_every_n_days)
+}
+
+private fun daysOfWeekOrdenados(): List<DayOfWeek> = listOf(
+    DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY,
+    DayOfWeek.FRIDAY, DayOfWeek.SATURDAY, DayOfWeek.SUNDAY
+)
+
+@Composable
+private fun dayShortLabel(day: DayOfWeek): String = when (day) {
+    DayOfWeek.MONDAY -> stringResource(R.string.day_monday_short)
+    DayOfWeek.TUESDAY -> stringResource(R.string.day_tuesday_short)
+    DayOfWeek.WEDNESDAY -> stringResource(R.string.day_wednesday_short)
+    DayOfWeek.THURSDAY -> stringResource(R.string.day_thursday_short)
+    DayOfWeek.FRIDAY -> stringResource(R.string.day_friday_short)
+    DayOfWeek.SATURDAY -> stringResource(R.string.day_saturday_short)
+    DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday_short)
 }
 
 @Composable

@@ -7,6 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.ignaciovinarro.stayfocused.planner.data.TaskDao
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
+import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceDao
+import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,10 +18,15 @@ import javax.inject.Singleton
 
 private const val DATABASE_NAME = "stayfocused.db"
 
-@Database(entities = [TaskEntity::class], version = 1, exportSchema = true)
+@Database(
+    entities = [TaskEntity::class, TaskOccurrenceEntity::class],
+    version = 2,
+    exportSchema = true
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
+    abstract fun taskOccurrenceDao(): TaskOccurrenceDao
 }
 
 @Module
@@ -29,8 +36,13 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
-        Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME).build()
+        Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME)
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideTaskDao(database: AppDatabase): TaskDao = database.taskDao()
+
+    @Provides
+    fun provideTaskOccurrenceDao(database: AppDatabase): TaskOccurrenceDao = database.taskOccurrenceDao()
 }
