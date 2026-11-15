@@ -140,6 +140,12 @@ Mayor esfuerzo en la lógica de negocio:
 - **Manuales**: alarmas, permisos, auriculares, música, tiempo de pantalla.
 - Cuando una fase se da por terminada, entregar la **lista de comprobación manual** correspondiente.
 
+**Reglas de ejecución y cobertura:**
+- **Cada cambio individual** (nuevo archivo, función, clase, o modificación de lógica existente) **debe incluir su archivo de prueba correspondiente** en `src/test` (unitarias) o `src/androidTest` (instrumentadas).
+- **Antes de dar cualquier tarea por terminada**: compilar (`./gradlew assembleDebug`) y correr **la suite completa de pruebas** (`./gradlew test` y `./gradlew connectedAndroidTest` si aplica), más `./gradlew lint` si se tocaron varios archivos.
+- Si no se pudo ejecutar algo, declararlo explícitamente.
+- No se considera "terminado" un cambio hasta que la suite completa pase en verde.
+
 ## Comandos
 
 ```bash
