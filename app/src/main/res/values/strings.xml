@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">Stay Focused</string>
+
+    <!-- Navegación principal -->
+    <string name="nav_today">Hoy</string>
+    <string name="nav_finance">Finanzas</string>
+    <string name="nav_gym">Gimnasio</string>
+    <string name="nav_nutrition">Dieta</string>
+    <string name="nav_meditation">Meditación</string>
+
+    <!-- Menú secundario -->
+    <string name="nav_music">Música y auriculares</string>
+    <string name="nav_screentime">Tiempo de pantalla</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Acciones comunes -->
+    <string name="action_add">Agregar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_done">Listo</string>
+    <string name="action_close">Cerrar</string>
+
+    <!-- Estados -->
+    <string name="state_empty">No hay elementos</string>
+    <string name="state_loading">Cargando…</string>
+    <string name="state_error">Error al cargar</string>
+
+    <!-- Accesibilidad -->
+    <string name="a11y_nav_today">Pestaña Hoy, línea de tiempo del día</string>
+    <string name="a11y_nav_finance">Pestaña Finanzas, resumen financiero</string>
+    <string name="a11y_nav_gym">Pestaña Gimnasio, rutinas y sesiones</string>
+    <string name="a11y_nav_nutrition">Pestaña Dieta, diario del día</string>
+    <string name="a11y_nav_meditation">Pestaña Meditación, temporizador y racha</string>
+</resources>

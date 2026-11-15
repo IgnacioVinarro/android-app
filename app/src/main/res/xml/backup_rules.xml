@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   Copia de seguridad automática de Android deshabilitada (android:allowBackup="false"
+   en el manifiesto); este archivo queda vacío a propósito, listo por si se habilita
+   backup selectivo más adelante.
+-->
+<full-backup-content>
+</full-backup-content>

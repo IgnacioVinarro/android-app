@@ -98,7 +98,7 @@ Una sola actividad con un `NavHost` de Navigation Compose. La barra inferior tie
 | Hoy | Barra inferior | Línea de tiempo del día |
 | Finanzas | Barra inferior | Resumen financiero |
 | Gimnasio | Barra inferior | Rutinas y última sesión |
-| Alimentación | Barra inferior | Diario del día |
+| Dieta | Barra inferior | Diario del día |
 | Meditación | Barra inferior | Inicio de meditación |
 | Música y auriculares | Secundario | Mini reproductor en "Hoy" y pantalla propia |
 | Tiempo de pantalla | Secundario | Se abre desde el menú de "Hoy" |
@@ -165,7 +165,7 @@ Una sola base de datos (`AppDatabase`) con las tablas de todos los módulos. Los
 | `personal_record` | `exerciseId`, `kind`, `value`, `sessionSetId`, `achievedAt` | Se deriva de las series; se guarda para consultarlo rápido |
 | `body_measurement` | `date`, `kind`, `value` | Peso corporal y medidas |
 
-### 5.5 Alimentación, meditación y tiempo de pantalla
+### 5.5 Dieta, meditación y tiempo de pantalla
 
 | Tabla | Campos principales | Notas |
 | --- | --- | --- |
@@ -288,7 +288,7 @@ Solo se detalla lo que tiene una decisión técnica no obvia; el comportamiento 
 - **Recordatorio de inactividad:** el trabajo diario compara la fecha de la última sesión con el límite elegido.
 - **Exportar a CSV:** igual que en finanzas.
 
-### 8.4 Alimentación
+### 8.4 Dieta
 
 - Los valores de un alimento se escalan por gramos al registrarlo y se copian al `meal_item`.
 - **Open Food Facts:** consulta por código de barras o por texto con su API pública; se respeta su requisito de identificar la app en cada pedido y se muestra la atribución. El resultado se guarda en la tabla `food`, y si no hay conexión solo se usan los alimentos locales.
@@ -377,7 +377,7 @@ Las claves de Supabase que van en la app son las públicas; la clave de servicio
 | Web | Aplicación web instalable (PWA) en TypeScript, que lee y escribe en Supabase con un caché local para uso sin conexión |
 | Escritorio | La misma web empaquetada para Windows, con una herramienta de empaquetado a elegir cuando llegue el momento |
 | Código compartido | No se comparte código con Android; se comparten el esquema de datos y las reglas, documentados y con pruebas equivalentes |
-| Alcance | Planificación, finanzas, gimnasio (planificación e historial), alimentación y meditación. Música y tiempo de pantalla no existen en la web |
+| Alcance | Planificación, finanzas, gimnasio (planificación e historial), dieta y meditación. Música y tiempo de pantalla no existen en la web |
 
 ## 11. Seguridad, privacidad y respaldo
 
@@ -449,7 +449,7 @@ Sigue las cinco fases de la hoja de ruta del documento funcional; acá se detall
 | --- | --- |
 | 1. Base y planificación | Proyecto con Compose, Hilt, Room y DataStore; tema y navegación; `AppDatabase` con exportación de esquema; entidad `task` y línea de tiempo (mini-especificación 01); subtareas, recurrencia y rutinas; bandeja y arrastre de bloques; sistema de bloques (`TimelineSource`); alarmas con reprogramación tras reiniciar; canales de notificación; widget básico |
 | 2. Finanzas y gimnasio | Tablas y consultas de ambos módulos; librería de gráficos; presupuestos con alertas; sesión en curso con descanso, récords y superseries; mapa del cuerpo; exportación a CSV |
-| 3. Alimentación y meditación | Base de alimentos propia y consulta a Open Food Facts; escáner con CameraX y ML Kit; anillos de macros; temporizador de meditación con servicio en primer plano, campanas y racha |
+| 3. Dieta y meditación | Base de alimentos propia y consulta a Open Food Facts; escáner con CameraX y ML Kit; anillos de macros; temporizador de meditación con servicio en primer plano, campanas y racha |
 | 4. Computadora, música y pantalla | Servicio de escucha de notificaciones y controles de música; lectura de batería de auriculares por capas; lectura de uso del teléfono y límites; cuenta y sincronización con Supabase; versión web instalable |
 | 5. Pulido y versión final | Widgets restantes, búsqueda global, bloqueo biométrico, resumen semanal, diagnóstico de permisos, respaldo JSON completo, accesibilidad con TalkBack y APK firmado con clave estable |
 

@@ -36,7 +36,7 @@ La versión 1 entrega la línea de tiempo y seis módulos funcionales en Android
 | Planificación | Tareas, subtareas, rutinas, recurrencia, línea de tiempo, alarmas, bandeja, vista semanal, temporizador de enfoque | Integración con calendarios externos (Google Calendar), tareas compartidas |
 | Finanzas | Ingresos, gastos, categorías, presupuestos, estadísticas, múltiples cuentas | Importación de extractos bancarios, conexión con bancos, multimoneda con cotización automática |
 | Gimnasio | Ejercicios propios y precargados, rutinas, sesiones, descanso, récords, gráficos | Planes sugeridos, medidas corporales con fotos, integración con relojes |
-| Alimentación | Registro manual, alimentos propios, objetivos de macros, búsqueda en base abierta, escaneo de código de barras | Recetas, plan semanal de comidas, micronutrientes |
+| Dieta | Registro manual, alimentos propios, objetivos de macros, búsqueda en base abierta, escaneo de código de barras | Recetas, plan semanal de comidas, micronutrientes |
 | Meditación | Temporizador con campanas y rachas | Sesiones guiadas con audios, packs de contenido, sonidos de sueño avanzados |
 | Música y auriculares | Canción en reproducción, controles básicos, estado y batería cuando el dispositivo lo permita | Controles avanzados por marca de auriculares |
 | Computadora | Versión web instalable (PWA) con sincronización mediante Supabase, una vez que la app del teléfono funcione | Ejecutable de escritorio empaquetado, solo para Windows |
@@ -59,7 +59,7 @@ La app apunta a adultos que quieren ordenar su rutina y sus hábitos en una sola
 | Perfil | Necesidad principal | Módulos que más usa |
 | --- | --- | --- |
 | Profesional con agenda cargada | Ver el día completo y no olvidar nada | Planificación, Finanzas |
-| Persona que entrena con regularidad | Registrar series y ver progreso | Gimnasio, Alimentación, Planificación |
+| Persona que entrena con regularidad | Registrar series y ver progreso | Gimnasio, Dieta, Planificación |
 | Persona que busca equilibrio | Armar hábitos y bajar el estrés | Meditación, Planificación, Música |
 | Estudiante | Organizar estudio y gastos chicos | Planificación, Finanzas, Música |
 
@@ -102,7 +102,7 @@ El teléfono guarda todo en una base local y funciona por sí solo; el servidor 
 | Planificación | Tarea, rutina | Abre el detalle y permite completarla |
 | Finanzas | Vencimiento de pago | Abre el alta de la transacción |
 | Gimnasio | Sesión programada | Abre la sesión en curso |
-| Alimentación | Comida planificada | Abre el diario de comidas |
+| Dieta | Comida planificada | Abre el diario de comidas |
 | Meditación | Sesión programada | Inicia el temporizador o la sesión guiada |
 | Música | No aporta bloques | No aplica |
 
@@ -257,7 +257,7 @@ Permite armar rutinas, registrar cada serie con muy pocos toques durante el entr
 - Historial
 - Progreso, récords por ejercicio y mapa del cuerpo semanal
 
-## 8. Módulo Alimentación
+## 8. Módulo Dieta
 
 Permite registrar lo que se come en el día y comparar los macronutrientes consumidos (proteínas, carbohidratos y grasas) y las calorías con objetivos diarios. Es una herramienta de registro, no de asesoramiento nutricional.
 
@@ -410,7 +410,7 @@ Son las funciones que comparten todos los módulos y que dan coherencia a la app
 
 | ID | Función | Descripción |
 | --- | --- | --- |
-| TR-01 | Navegación | Barra inferior en el teléfono (Hoy, Finanzas, Gimnasio, Alimentación, Meditación) y menú lateral en computadora; Música accesible desde un mini reproductor |
+| TR-01 | Navegación | Barra inferior en el teléfono (Hoy, Finanzas, Gimnasio, Dieta, Meditación) y menú lateral en computadora; Música accesible desde un mini reproductor |
 | TR-02 | Pantalla "Hoy" | Línea de tiempo con tarjetas resumen de cada módulo (gasto del día, macros, próxima rutina, racha) |
 | TR-03 | Sistema de bloques | Cada módulo registra sus tipos de evento en la línea de tiempo, con ícono, color y acción propia al tocarlo |
 | TR-04 | Notificaciones | Canales separados por módulo (tareas, alarmas, entrenamiento, comidas, meditación, presupuesto) que se activan o silencian por separado |
@@ -455,7 +455,7 @@ La web se desarrolla primero; el ejecutable se obtiene empaquetándola, por lo q
 | Planificación | Completa | Arrastrar bloques con el mouse, atajos de teclado, vista de día y semana más amplia |
 | Finanzas | Completa | Mejor para cargar muchos gastos y ver estadísticas; exportación a CSV |
 | Gimnasio | Armado de rutinas, historial y progreso completos; sesión en curso básica | La sesión se pensó para el teléfono, que es el que se lleva al gimnasio |
-| Alimentación | Completa, salvo escáner de código de barras | El código se puede escribir a mano |
+| Dieta | Completa, salvo escáner de código de barras | El código se puede escribir a mano |
 | Meditación | Temporizador con campanas y rachas; sesiones guiadas después | La reproducción sigue mientras la pestaña o ventana esté abierta |
 | Música y auriculares | No disponible en la v1 | Depende de funciones propias del teléfono Android |
 | Alarmas | Avisos mientras la app esté abierta o instalada | El teléfono es el dispositivo principal para alarmas confiables |
@@ -494,9 +494,9 @@ Es una vista funcional de las entidades principales; el diseño técnico de tabl
 | Sesión | Gimnasio | fecha, duración, estado | Pertenece a una rutina (opcional); tiene series realizadas |
 | Serie | Gimnasio | peso, repeticiones, tipo, completada | Pertenece a una sesión y a un ejercicio |
 | Récord personal | Gimnasio | tipo, valor, fecha | Se deriva de las series de un ejercicio |
-| Alimento | Alimentación | nombre, porción, calorías, proteínas, carbohidratos, grasas, origen | Se usa en registros de comida |
-| Comida | Alimentación | momento del día, fecha y hora | Contiene registros de alimentos con su cantidad y valores guardados |
-| Objetivo nutricional | Alimentación | calorías, proteínas, carbohidratos, grasas, día de la semana | Se compara con el total del día |
+| Alimento | Dieta | nombre, porción, calorías, proteínas, carbohidratos, grasas, origen | Se usa en registros de comida |
+| Comida | Dieta | momento del día, fecha y hora | Contiene registros de alimentos con su cantidad y valores guardados |
+| Objetivo nutricional | Dieta | calorías, proteínas, carbohidratos, grasas, día de la semana | Se compara con el total del día |
 | Pack de meditación | Meditación | título, descripción | Contiene sesiones guiadas |
 | Sesión guiada | Meditación | título, duración, audio, autor | Pertenece a un pack |
 | Meditación realizada | Meditación | fecha, duración, completada, tipo (libre o guiada) | Alimenta la racha |
@@ -567,7 +567,7 @@ Cada fase tiene una puerta de salida; la tabla detalla qué incluye y cómo se v
 | --- | --- | --- | --- |
 | 1. Base y planificación | Proyecto, navegación, tema, base de datos local y núcleo; línea de tiempo, tareas, subtareas, recurrencia, rutinas, bandeja, alarmas y widget básico | PL-01 a PL-17, TR-01 a TR-04, TR-08, TR-09 | Se arma un día completo con tareas y rutinas, se mueven los bloques y las alarmas suenan a la hora, también después de reiniciar el teléfono |
 | 2. Finanzas y gimnasio | Transacciones, cuentas, presupuestos y estadísticas; ejercicios, rutinas, sesión en curso y récords | FI-01 a FI-10, GY-01 a GY-11, GY-16 a GY-18 | Un gasto se registra en menos de 5 segundos, el presupuesto avisa al 80 % y al 100 %, y una sesión completa detecta un récord y queda marcada en la línea de tiempo |
-| 3. Alimentación y meditación | Registro de comidas, macros y objetivos; temporizador con campanas y rachas (las sesiones guiadas llegan después) | AL-01 a AL-10, AL-12, ME-01 a ME-04, ME-09, ME-10, ME-13 | Los macros del día se comparan con el objetivo y una meditación completa suma a la racha |
+| 3. Dieta y meditación | Registro de comidas, macros y objetivos; temporizador con campanas y rachas (las sesiones guiadas llegan después) | AL-01 a AL-10, AL-12, ME-01 a ME-04, ME-09, ME-10, ME-13 | Los macros del día se comparan con el objetivo y una meditación completa suma a la racha |
 | 4. Computadora y música | Cuenta y sincronización con Supabase, web instalable y luego, más adelante, el programa de escritorio para Windows; música en reproducción y auriculares; tiempo de pantalla y enfoque | TR-11, PC-01 a PC-09, MU-01 a MU-10, TP-01 a TP-08 | Un cambio hecho en el teléfono aparece en la computadora en menos de 10 segundos; el tiempo de pantalla se muestra con el permiso concedido; la música y la batería se muestran o indican "no disponible" sin errores |
 | 5. Pulido y versión final | Widgets, búsqueda global, bloqueo, backup y exportación, resumen semanal y los requisitos de prioridad media y baja que quedaron pendientes | TR-05 a TR-07, TR-10, TR-12 a TR-14, NF-01 a NF-17 | Prueba en el teléfono propio durante el uso diario, revisión con TalkBack y respaldo de datos verificado |
 

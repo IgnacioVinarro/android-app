@@ -53,7 +53,7 @@ MainActivity.kt
 
 - Cada área separa `data` (entidades, DAO, repositorio), `domain` (reglas puras) y `ui`.
 - **Las áreas no se llaman entre sí**: se comunican solo a través de `core`.
-- Una sola actividad con un `NavHost`. Barra inferior: Hoy, Finanzas, Gimnasio, Alimentación, Meditación. Música, Tiempo de pantalla y Ajustes son destinos secundarios.
+- Una sola actividad con un `NavHost`. Barra inferior: Hoy, Finanzas, Gimnasio, Dieta, Meditación. Música, Tiempo de pantalla y Ajustes son destinos secundarios.
 
 ## Línea de tiempo (eje de la app)
 
@@ -87,7 +87,7 @@ MainActivity.kt
 - **Rutinas**: aplicar una rutina crea tareas normales enlazadas por `routineId`; editar la rutina no cambia las ya creadas.
 - **Finanzas**: saldo = ingresos − gastos − transferencias salientes + entrantes (se calcula, no se guarda). Las transferencias (una sola fila con `transferAccountId`) **no cuentan como ingreso ni gasto**. Borrar una categoría con transacciones exige reasignarlas. Presupuesto con alertas al 80 % y 100 %.
 - **Gimnasio**: volumen de serie = peso × reps; volumen del ejercicio = suma de series normales. **1RM con Epley: `peso × (1 + reps / 30)`.** Las series de calentamiento no cuentan para récords ni volumen. Sesión abandonada = sesión incompleta que conserva las series. La sesión en curso se guarda en la base serie por serie.
-- **Alimentación**: 4 kcal/g de proteína y carbohidrato, 9 kcal/g de grasa. `meal_item` **copia los valores al momento de cargar**: cambiar un alimento no altera registros pasados. Datos de Open Food Facts se muestran como orientativos y editables.
+- **Dieta**: 4 kcal/g de proteína y carbohidrato, 9 kcal/g de grasa. `meal_item` **copia los valores al momento de cargar**: cambiar un alimento no altera registros pasados. Datos de Open Food Facts se muestran como orientativos y editables.
 - **Meditación**: la racha cuenta sesiones completadas con ≥ 80 % de lo planeado (configurable). Temporizador con reloj monotónico, no contando segundos.
 - **Sincronización (futuro)**: gana la modificación más reciente; el borrado lógico cuenta como modificación.
 
@@ -177,7 +177,7 @@ Antes de dar una tarea por terminada: compilar y correr `test` (y `lint` si toca
 | --- | --- |
 | 1 | Base + Planificación (PL-01…17), tema, navegación, alarmas, widget básico |
 | 2 | Finanzas + Gimnasio |
-| 3 | Alimentación + Meditación (solo temporizador y campanas) |
+| 3 | Dieta + Meditación (solo temporizador y campanas) |
 | 4 | Cuenta/sincronización Supabase, web (PWA), música y auriculares, tiempo de pantalla |
 | 5 | Pulido: widgets, búsqueda global, bloqueo biométrico, backup, resumen semanal, TalkBack, APK firmado |
 
