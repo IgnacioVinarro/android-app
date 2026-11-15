@@ -18,7 +18,10 @@ import com.ignaciovinarro.stayfocused.finance.ui.FinanceScreen
 import com.ignaciovinarro.stayfocused.gym.ui.GymScreen
 import com.ignaciovinarro.stayfocused.meditation.ui.MeditationScreen
 import com.ignaciovinarro.stayfocused.nutrition.ui.NutritionScreen
+import com.ignaciovinarro.stayfocused.planner.ui.CreateTaskScreen
 import com.ignaciovinarro.stayfocused.planner.ui.TodayScreen
+
+private const val ROUTE_CREATE_TASK = "planner/task/new"
 
 @Composable
 fun StayFocusedApp() {
@@ -32,11 +35,19 @@ fun StayFocusedApp() {
             startDestination = StayFocusedDestination.TODAY.route,
             modifier = androidx.compose.ui.Modifier.padding(innerPadding)
         ) {
-            composable(StayFocusedDestination.TODAY.route) { TodayScreen() }
+            composable(StayFocusedDestination.TODAY.route) {
+                TodayScreen(onAddTask = { navController.navigate(ROUTE_CREATE_TASK) })
+            }
             composable(StayFocusedDestination.FINANCE.route) { FinanceScreen() }
             composable(StayFocusedDestination.GYM.route) { GymScreen() }
             composable(StayFocusedDestination.NUTRITION.route) { NutritionScreen() }
             composable(StayFocusedDestination.MEDITATION.route) { MeditationScreen() }
+            composable(ROUTE_CREATE_TASK) {
+                CreateTaskScreen(
+                    onDone = { navController.popBackStack() },
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }

@@ -27,6 +27,22 @@
     <string name="state_loading">Cargando…</string>
     <string name="state_error">Error al cargar</string>
 
+    <!-- Crear tarea (PL-04) -->
+    <string name="create_task_title">Nueva tarea</string>
+    <string name="create_task_field_title">Título</string>
+    <string name="create_task_field_notes">Notas (opcional)</string>
+    <string name="create_task_field_date">Fecha</string>
+    <string name="create_task_field_start_time">Hora de inicio</string>
+    <string name="create_task_field_no_time">Sin hora (bandeja)</string>
+    <string name="create_task_field_duration">Duración (minutos)</string>
+    <string name="create_task_field_icon">Ícono</string>
+    <string name="create_task_field_color">Color</string>
+    <string name="a11y_add_task">Agregar tarea</string>
+    <string name="inbox_title">Bandeja</string>
+    <string name="a11y_inbox_assign_time">Asignar hora a %1$s</string>
+    <string name="a11y_task_color_selected">Color seleccionado</string>
+    <string name="a11y_task_icon_selected">Ícono seleccionado</string>
+
     <!-- Accesibilidad -->
     <string name="a11y_nav_today">Pestaña Hoy, línea de tiempo del día</string>
     <string name="a11y_nav_finance">Pestaña Finanzas, resumen financiero</string>

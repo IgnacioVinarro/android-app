@@ -1,7 +1,7 @@
 # Ticket 0002 – Entidad `task` + Room (capa de datos)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Primer paso del módulo Planificación (Fase 1): crear la entidad `task` en Room con su DAO
@@ -26,20 +26,24 @@ técnico (sección de fases) y resuelve lo que había quedado pendiente del tick
 - [x] `TaskRepository` en `planner/data` que envuelve el DAO (es lo único que verá el ViewModel más adelante)
 - [x] `DatabaseModule` de Hilt: agrega `TaskEntity` a `AppDatabase`, habilita `@Database` (ahora que hay una entidad real) y expone `TaskDao`
 - [x] Exportar esquema a `app/schemas/` (versión 1 de la base)
-- [x] Pruebas instrumentadas del DAO con Room en memoria (insertar, listar por fecha y orden, borrado lógico, unicidad de `uuid`) — **pendiente correrlas en el emulador, ver nota**
+- [x] Pruebas instrumentadas del DAO con Room en memoria (insertar, listar por fecha y orden, borrado lógico, unicidad de `uuid`) — corridas en el emulador, en verde
 - [x] Pruebas unitarias de `TaskRepository` (MockK sobre el DAO)
 - [x] Verificar compilación: `./gradlew assembleDebug`
-- [x] Correr pruebas: `./gradlew test`
+- [x] Correr pruebas: `./gradlew test`, `./gradlew connectedAndroidTest` y `./gradlew lint`
 
 ## Notas
 - Dinero no aplica acá. Pesos tampoco.
 - `uuid`: generado con `UUID.randomUUID().toString()` por defecto en el constructor de `TaskEntity`, índice único.
 - Claves foráneas (cuando existan en pasos futuros) apuntan al `id` numérico, no al `uuid`.
 - No se toca el manifiesto en este ticket.
-- `./gradlew assembleDebug` y `./gradlew test` (unitarias) corren en verde.
-- `./gradlew connectedAndroidTest` (prueba del DAO, `TaskDaoTest`) no se ejecutó en esta sesión
-  porque requiere el emulador corriendo; queda pendiente correrla antes de dar el ticket por
-  terminado.
+- `./gradlew assembleDebug`, `./gradlew test`, `./gradlew connectedAndroidTest` y `./gradlew lint`
+  corren en verde.
+- Se agregó la dependencia `androidx.test.ext:junit` (faltaba para `AndroidJUnit4` en pruebas
+  instrumentadas) y se corrigió `TaskDaoTest`: un test con cuerpo de expresión terminaba en
+  `assertThat(...).containsExactly(...)`, que en Truth devuelve `Ordered` y no `Unit` — JUnit4
+  exige métodos `void`. Se pasaron todos los tests del archivo a cuerpo de bloque.
+- Se corrigió `local.properties` (fuera de Git) para escapar el separador de unidad (`C\:`) y que
+  lint no lo marque como error.
 - `TaskRepository.create()` recibe un `TaskEntity` ya armado (con `uuid`/`createdAt` default);
   no hay todavía una decisión de dónde se arman esos valores desde una pantalla porque no hay
   pantalla en este ticket — se retoma en el ticket de "Crear tarea" (PL-04).
