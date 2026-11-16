@@ -48,6 +48,10 @@ class TaskTimelineSource @Inject constructor(
                     return@mapNotNull task.toTimelineBlock(
                         date = date,
                         startMinutes = startMinutes,
+                        durationMinutes = task.durationMinutes,
+                        title = task.title,
+                        iconKey = task.iconKey,
+                        colorKey = task.colorKey,
                         completed = task.completedAt != null,
                         movable = true
                     )
@@ -60,6 +64,10 @@ class TaskTimelineSource @Inject constructor(
                 task.toTimelineBlock(
                     date = date,
                     startMinutes = occurrence?.overrideStartMinutes ?: startMinutes,
+                    durationMinutes = occurrence?.overrideDurationMinutes ?: task.durationMinutes,
+                    title = occurrence?.overrideTitle ?: task.title,
+                    iconKey = occurrence?.overrideIconKey ?: task.iconKey,
+                    colorKey = occurrence?.overrideColorKey ?: task.colorKey,
                     completed = occurrence?.completedAt != null,
                     movable = false // mover una ocurrencia puntual sin tocar la regla es un paso aparte
                 )
@@ -71,6 +79,10 @@ class TaskTimelineSource @Inject constructor(
 private fun TaskEntity.toTimelineBlock(
     date: LocalDate,
     startMinutes: Int,
+    durationMinutes: Int,
+    title: String,
+    iconKey: String,
+    colorKey: String,
     completed: Boolean,
     movable: Boolean
 ) = TimelineBlock(

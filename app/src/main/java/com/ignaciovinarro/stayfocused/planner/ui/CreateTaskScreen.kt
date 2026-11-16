@@ -1,22 +1,19 @@
 package com.ignaciovinarro.stayfocused.planner.ui
 
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -30,7 +27,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -50,9 +46,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ignaciovinarro.stayfocused.R
-import com.ignaciovinarro.stayfocused.core.ui.TaskColorKey
-import com.ignaciovinarro.stayfocused.core.ui.TaskIconKey
+import com.ignaciovinarro.stayfocused.core.ui.TaskColorSelector
+import com.ignaciovinarro.stayfocused.core.ui.TaskIconSelector
 import com.ignaciovinarro.stayfocused.core.ui.TimePickerDialog
+import com.ignaciovinarro.stayfocused.planner.domain.EditScope
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import java.time.DayOfWeek
@@ -73,14 +70,26 @@ fun CreateTaskScreen(
     var showTimePicker by remember { mutableStateOf(false) }
     var showRecurrenceEndPicker by remember { mutableStateOf(false) }
 
+    val isEditing = uiState.taskId != null
+    val isEditingRecurring = isEditing && uiState.isRecurringTask
+
     Scaffold(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.create_task_title)) },
+                title = {
+                    Text(stringResource(if (isEditing) R.string.edit_task_title else R.string.create_task_title))
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.action_close))
+                    }
+                },
+                actions = {
+                    if (isEditing) {
+                        IconButton(onClick = { viewModel.delete(onDeleted = onDone) }) {
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.action_delete))
+                        }
                     }
                 }
             )
@@ -100,20 +109,24 @@ fun CreateTaskScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
+            if (isEditingRecurring) {
                 Text("${stringResource(R.string.create_task_field_date)}: ${uiState.date}")
-            }
+            } else {
+                OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("${stringResource(R.string.create_task_field_date)}: ${uiState.date}")
+                }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(stringResource(R.string.create_task_field_no_time))
-                Switch(
-                    checked = !uiState.hasStartTime,
-                    onCheckedChange = { checked -> viewModel.onHasStartTimeChange(!checked) }
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(stringResource(R.string.create_task_field_no_time))
+                    Switch(
+                        checked = !uiState.hasStartTime,
+                        onCheckedChange = { checked -> viewModel.onHasStartTimeChange(!checked) }
+                    )
+                }
             }
 
             if (uiState.hasStartTime) {
@@ -135,7 +148,9 @@ fun CreateTaskScreen(
 
             HorizontalDivider()
 
-            if (uiState.hasStartTime) {
+            if (isEditingRecurring) {
+                Text(stringResource(R.string.edit_task_recurrence_notice), style = MaterialTheme.typography.bodyMedium)
+            } else if (uiState.hasStartTime) {
                 RecurrenceSection(
                     uiState = uiState,
                     viewModel = viewModel,
@@ -144,32 +159,10 @@ fun CreateTaskScreen(
             }
 
             Text(stringResource(R.string.create_task_field_icon), style = MaterialTheme.typography.labelLarge)
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TaskIconKey.entries.forEach { iconOption ->
-                    IconOption(
-                        icon = iconOption,
-                        selected = iconOption.key == uiState.iconKey,
-                        onClick = { viewModel.onIconChange(iconOption.key) }
-                    )
-                }
-            }
+            TaskIconSelector(selectedKey = uiState.iconKey, onSelect = viewModel::onIconChange)
 
             Text(stringResource(R.string.create_task_field_color), style = MaterialTheme.typography.labelLarge)
-            Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                TaskColorKey.entries.forEach { colorOption ->
-                    ColorOption(
-                        colorOption = colorOption,
-                        selected = colorOption.key == uiState.colorKey,
-                        onClick = { viewModel.onColorChange(colorOption.key) }
-                    )
-                }
-            }
+            TaskColorSelector(selectedKey = uiState.colorKey, onSelect = viewModel::onColorChange)
 
             OutlinedTextField(
                 value = uiState.notes,
@@ -244,35 +237,42 @@ fun CreateTaskScreen(
             }
         ) { DatePicker(state = recurrenceEndPickerState) }
     }
+
+    uiState.pendingScopeAction?.let { pendingAction ->
+        AlertDialog(
+            onDismissRequest = viewModel::onDismissScopeDialog,
+            title = {
+                val titleRes = if (pendingAction == PendingScopeAction.DELETE) {
+                    R.string.edit_scope_dialog_title_delete
+                } else {
+                    R.string.edit_scope_dialog_title_save
+                }
+                Text(stringResource(titleRes))
+            },
+            text = {
+                Column {
+                    TextButton(onClick = { viewModel.onScopeChosen(EditScope.ONLY_THIS) }) {
+                        Text(stringResource(R.string.edit_scope_only_this))
+                    }
+                    TextButton(onClick = { viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING) }) {
+                        Text(stringResource(R.string.edit_scope_this_and_following))
+                    }
+                    TextButton(onClick = { viewModel.onScopeChosen(EditScope.ALL) }) {
+                        Text(stringResource(R.string.edit_scope_all))
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = viewModel::onDismissScopeDialog) { Text(stringResource(R.string.action_cancel)) }
+            }
+        )
+    }
 }
 
 private fun LocalDate.toEpochMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
 
 private fun Long.toLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
-
-@Composable
-private fun IconOption(icon: TaskIconKey, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier
-            .size(48.dp)
-            .border(
-                width = if (selected) 2.dp else 0.dp,
-                color = MaterialTheme.colorScheme.primary,
-                shape = CircleShape
-            )
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(
-                imageVector = icon.icon,
-                contentDescription = if (selected) stringResource(R.string.a11y_task_icon_selected) else null,
-                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -383,24 +383,4 @@ private fun dayShortLabel(day: DayOfWeek): String = when (day) {
     DayOfWeek.FRIDAY -> stringResource(R.string.day_friday_short)
     DayOfWeek.SATURDAY -> stringResource(R.string.day_saturday_short)
     DayOfWeek.SUNDAY -> stringResource(R.string.day_sunday_short)
-}
-
-@Composable
-private fun ColorOption(colorOption: TaskColorKey, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = colorOption.color,
-        modifier = Modifier.size(40.dp)
-    ) {
-        if (selected) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = stringResource(R.string.a11y_task_color_selected),
-                    tint = androidx.compose.ui.graphics.Color.White
-                )
-            }
-        }
-    }
 }

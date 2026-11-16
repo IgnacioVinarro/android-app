@@ -193,4 +193,33 @@ class TaskTimelineSourceTest {
             awaitComplete()
         }
     }
+
+    @Test
+    fun `una ocurrencia con overrides propios usa esos campos, no los de la tarea base`() = runTest {
+        val tarea = tarea(
+            id = 5L,
+            title = "Tomar agua",
+            startMinutes = 8 * 60,
+            date = fecha,
+            recurrenceType = RecurrenceType.DAILY.name
+        )
+        val ocurrencia = TaskOccurrenceEntity(
+            taskId = 5L,
+            date = fecha.toEpochDay(),
+            overrideDurationMinutes = 90,
+            overrideTitle = "Tomar mucha agua",
+            overrideIconKey = "task_health",
+            overrideColorKey = "red"
+        )
+        stub(listOf(tarea), listOf(ocurrencia))
+
+        source.blocksFor(fecha).test {
+            val bloque = awaitItem().single()
+            assertEquals(90, bloque.durationMinutes)
+            assertEquals("Tomar mucha agua", bloque.title)
+            assertEquals("task_health", bloque.iconKey)
+            assertEquals("red", bloque.colorKey)
+            awaitComplete()
+        }
+    }
 }

@@ -8,6 +8,11 @@ import java.util.UUID
 // Solo existe una fila acá cuando una ocurrencia de una tarea recurrente se completa, se salta
 // o se modifica (CLAUDE.md); las demás ocurrencias se calculan con `occursOn` y no tienen fila.
 // Completar una ocurrencia no completa las demás: `completedAt` vive acá, no en `task`.
+//
+// Editar "solo esta" ocurrencia (PL-15): los campos `override*` pisan el valor de la tarea base
+// solo para esta fecha puntual; nulo = sin override, se usa el valor de `task`. `overrideTitle`
+// vacío (no nulo) es un título válido, por eso el override es de texto completo, no de "vacío =
+// sin cambio".
 @Entity(
     tableName = "task_occurrence",
     indices = [
@@ -22,6 +27,11 @@ data class TaskOccurrenceEntity(
     val date: Long, // epochDay de la ocurrencia puntual
     val skipped: Boolean = false,
     val overrideStartMinutes: Int? = null,
+    val overrideDurationMinutes: Int? = null,
+    val overrideTitle: String? = null,
+    val overrideNotes: String? = null,
+    val overrideIconKey: String? = null,
+    val overrideColorKey: String? = null,
     val completedAt: Long? = null,
     val status: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),

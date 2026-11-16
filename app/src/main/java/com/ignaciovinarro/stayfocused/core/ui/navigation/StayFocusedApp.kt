@@ -10,18 +10,36 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.ignaciovinarro.stayfocused.finance.ui.FinanceScreen
 import com.ignaciovinarro.stayfocused.gym.ui.GymScreen
 import com.ignaciovinarro.stayfocused.meditation.ui.MeditationScreen
 import com.ignaciovinarro.stayfocused.nutrition.ui.NutritionScreen
 import com.ignaciovinarro.stayfocused.planner.ui.CreateTaskScreen
+import com.ignaciovinarro.stayfocused.planner.ui.RoutineEditorScreen
+import com.ignaciovinarro.stayfocused.planner.ui.RoutinesScreen
 import com.ignaciovinarro.stayfocused.planner.ui.TodayScreen
 
-private const val ROUTE_CREATE_TASK = "planner/task/new"
+private const val ROUTE_CREATE_TASK = "planner/task/{taskId}?date={date}"
+private const val ROUTE_ROUTINES = "planner/routines"
+private const val ROUTE_ROUTINE_EDITOR = "planner/routines/editor/{routineId}"
+private const val ARG_TASK_ID = "taskId"
+private const val ARG_OCCURRENCE_DATE = "date"
+private const val ARG_ROUTINE_ID = "routineId"
+private const val SIN_FECHA_DE_OCURRENCIA = -1L
+
+private fun createTaskRoute(): String = "planner/task/0?date=$SIN_FECHA_DE_OCURRENCIA"
+
+// `occurrenceDate` es la fecha (epochDay) del bloque tocado en la línea de tiempo: para una
+// tarea recurrente es la ocurrencia puntual que se va a editar/borrar (PL-15).
+private fun editTaskRoute(taskId: Long, occurrenceDate: Long): String = "planner/task/$taskId?date=$occurrenceDate"
+
+private fun routineEditorRoute(routineId: Long): String = "planner/routines/editor/$routineId"
 
 @Composable
 fun StayFocusedApp() {
@@ -36,16 +54,44 @@ fun StayFocusedApp() {
             modifier = androidx.compose.ui.Modifier.padding(innerPadding)
         ) {
             composable(StayFocusedDestination.TODAY.route) {
-                TodayScreen(onAddTask = { navController.navigate(ROUTE_CREATE_TASK) })
+                TodayScreen(
+                    onAddTask = { navController.navigate(createTaskRoute()) },
+                    onOpenRoutines = { navController.navigate(ROUTE_ROUTINES) },
+                    onEditTask = { taskId, occurrenceDate ->
+                        navController.navigate(editTaskRoute(taskId, occurrenceDate))
+                    }
+                )
             }
             composable(StayFocusedDestination.FINANCE.route) { FinanceScreen() }
             composable(StayFocusedDestination.GYM.route) { GymScreen() }
             composable(StayFocusedDestination.NUTRITION.route) { NutritionScreen() }
             composable(StayFocusedDestination.MEDITATION.route) { MeditationScreen() }
-            composable(ROUTE_CREATE_TASK) {
+            composable(
+                ROUTE_CREATE_TASK,
+                arguments = listOf(
+                    navArgument(ARG_TASK_ID) { type = NavType.LongType },
+                    navArgument(ARG_OCCURRENCE_DATE) { type = NavType.LongType; defaultValue = SIN_FECHA_DE_OCURRENCIA }
+                )
+            ) {
                 CreateTaskScreen(
                     onDone = { navController.popBackStack() },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(ROUTE_ROUTINES) {
+                RoutinesScreen(
+                    onBack = { navController.popBackStack() },
+                    onCreateRoutine = { navController.navigate(routineEditorRoute(0L)) },
+                    onEditRoutine = { routineId -> navController.navigate(routineEditorRoute(routineId)) }
+                )
+            }
+            composable(
+                ROUTE_ROUTINE_EDITOR,
+                arguments = listOf(navArgument(ARG_ROUTINE_ID) { type = NavType.LongType })
+            ) {
+                RoutineEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() }
                 )
             }
         }

@@ -1,8 +1,12 @@
 package com.ignaciovinarro.stayfocused.planner.ui
 
+import androidx.lifecycle.SavedStateHandle
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
+import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
+import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
+import com.ignaciovinarro.stayfocused.planner.domain.EditScope
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import io.mockk.coEvery
@@ -22,6 +26,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -29,6 +34,7 @@ import org.junit.Test
 class CreateTaskViewModelTest {
 
     private val taskRepository = mockk<TaskRepository>()
+    private val taskOccurrenceRepository = mockk<TaskOccurrenceRepository>()
     private val settingsRepository = mockk<SettingsRepository>()
     private val dispatcher = StandardTestDispatcher()
 
@@ -43,22 +49,40 @@ class CreateTaskViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun crearViewModel(): CreateTaskViewModel {
-        val viewModel = CreateTaskViewModel(taskRepository, settingsRepository)
+    private fun crearViewModelNueva(): CreateTaskViewModel {
+        val viewModel = CreateTaskViewModel(
+            SavedStateHandle(mapOf("taskId" to 0L)),
+            taskRepository,
+            taskOccurrenceRepository,
+            settingsRepository
+        )
         dispatcher.scheduler.advanceUntilIdle()
         return viewModel
     }
 
+    private fun crearViewModelEditando(taskId: Long, occurrenceDate: Long = -1L): CreateTaskViewModel {
+        val viewModel = CreateTaskViewModel(
+            SavedStateHandle(mapOf("taskId" to taskId, "date" to occurrenceDate)),
+            taskRepository,
+            taskOccurrenceRepository,
+            settingsRepository
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+        return viewModel
+    }
+
+    // --- Crear tarea (comportamiento ya existente, sin cambios de alcance) ---
+
     @Test
     fun `toma la duracion por defecto de Ajustes al iniciar`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
 
         assertEquals(45, viewModel.uiState.value.durationMinutes)
     }
 
     @Test
     fun `no guarda si el titulo esta vacio`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
 
         var guardado = false
         viewModel.save(onSaved = { guardado = true })
@@ -70,7 +94,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `guarda la tarea con los datos cargados y notifica al terminar`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -99,7 +123,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `sin hora activado guarda startMinutes nulo`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -113,7 +137,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `notas vacias se guardan como null`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -126,7 +150,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `sin recurrencia activada no guarda ningun campo de recurrencia`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -142,7 +166,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `activar recurrencia fuerza la hora de inicio`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
 
         viewModel.onHasStartTimeChange(false)
         viewModel.onRecurrenceEnabledChange(true)
@@ -152,7 +176,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `apagar la hora de inicio apaga la recurrencia`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
 
         viewModel.onRecurrenceEnabledChange(true)
         viewModel.onHasStartTimeChange(false)
@@ -162,7 +186,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `recurrencia diaria guarda solo el tipo`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -179,7 +203,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `recurrencia de dias especificos guarda la mascara de dias`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -197,7 +221,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `recurrencia cada n dias guarda el intervalo`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -213,7 +237,7 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `fecha de fin de recurrencia solo se guarda si esta activada`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
         val capturada = slot<TaskEntity>()
         coEvery { taskRepository.create(capture(capturada)) } returns 1L
 
@@ -230,12 +254,249 @@ class CreateTaskViewModelTest {
 
     @Test
     fun `dias especificos sin ningun dia marcado no es valido`() = runTest(dispatcher) {
-        val viewModel = crearViewModel()
+        val viewModel = crearViewModelNueva()
 
         viewModel.onTitleChange("Gimnasio")
         viewModel.onRecurrenceEnabledChange(true)
         viewModel.onRecurrenceTypeChange(RecurrenceType.SPECIFIC_DAYS)
 
         assert(!viewModel.uiState.value.isValid)
+    }
+
+    // --- Editar/borrar una tarea existente (PL-15) ---
+
+    private val tareaSimple = TaskEntity(
+        id = 10L,
+        title = "Tarea simple",
+        notes = "nota",
+        date = LocalDate.of(2026, 5, 1).toEpochDay(),
+        startMinutes = 8 * 60,
+        durationMinutes = 30,
+        iconKey = "task_default",
+        colorKey = "blue"
+    )
+
+    private val tareaRecurrente = TaskEntity(
+        id = 20L,
+        title = "Gimnasio",
+        date = LocalDate.of(2026, 1, 5).toEpochDay(), // lunes
+        startMinutes = 7 * 60,
+        durationMinutes = 60,
+        iconKey = "task_gym",
+        colorKey = "blue",
+        recurrenceType = RecurrenceType.WEEKLY.name
+    )
+
+    @Test
+    fun `cargar una tarea simple precarga el formulario`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+
+        val viewModel = crearViewModelEditando(10L)
+
+        val estado = viewModel.uiState.value
+        assertEquals(10L, estado.taskId)
+        assertEquals("Tarea simple", estado.title)
+        assertEquals("nota", estado.notes)
+        assertEquals(30, estado.durationMinutes)
+        assert(!estado.isRecurringTask)
+    }
+
+    @Test
+    fun `editar una tarea simple actualiza directamente sin pedir alcance`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        val capturada = slot<TaskEntity>()
+        coEvery { taskRepository.update(capture(capturada)) } returns Unit
+        val viewModel = crearViewModelEditando(10L)
+
+        viewModel.onTitleChange("Tarea simple editada")
+        var guardado = false
+        viewModel.save(onSaved = { guardado = true })
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(guardado)
+        assertNull(viewModel.uiState.value.pendingScopeAction)
+        assertEquals(10L, capturada.captured.id)
+        assertEquals("Tarea simple editada", capturada.captured.title)
+    }
+
+    @Test
+    fun `borrar una tarea simple borra directamente sin pedir alcance`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { taskRepository.delete(10L) } returns Unit
+        val viewModel = crearViewModelEditando(10L)
+
+        var borrado = false
+        viewModel.delete(onDeleted = { borrado = true })
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(borrado)
+        coVerify { taskRepository.delete(10L) }
+    }
+
+    @Test
+    fun `cargar una ocurrencia con overrides precarga esos valores, no los de la tarea base`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19) // tercer lunes
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns TaskOccurrenceEntity(
+            taskId = 20L,
+            date = fecha.toEpochDay(),
+            overrideTitle = "Gimnasio (pierna)",
+            overrideDurationMinutes = 90
+        )
+
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        val estado = viewModel.uiState.value
+        assertTrue(estado.isRecurringTask)
+        assertEquals("Gimnasio (pierna)", estado.title)
+        assertEquals(90, estado.durationMinutes)
+    }
+
+    @Test
+    fun `editar una tarea recurrente pide alcance antes de guardar`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onTitleChange("Gimnasio editado")
+        var guardado = false
+        viewModel.save(onSaved = { guardado = true })
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assert(!guardado)
+        assertEquals(PendingScopeAction.SAVE, viewModel.uiState.value.pendingScopeAction)
+        coVerify(exactly = 0) { taskRepository.update(any()) }
+    }
+
+    @Test
+    fun `elegir todas al editar una tarea recurrente actualiza la tarea base y notifica`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val capturada = slot<TaskEntity>()
+        coEvery { taskRepository.update(capture(capturada)) } returns Unit
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onTitleChange("Gimnasio editado")
+        var guardado = false
+        viewModel.save(onSaved = { guardado = true })
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(guardado)
+        assertEquals(20L, capturada.captured.id)
+        assertEquals("Gimnasio editado", capturada.captured.title)
+    }
+
+    @Test
+    fun `elegir solo esta al editar crea un override de ocurrencia sin tocar la tarea base`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val capturada = slot<TaskOccurrenceEntity>()
+        coEvery { taskOccurrenceRepository.create(capture(capturada)) } returns 1L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onTitleChange("Gimnasio solo hoy")
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ONLY_THIS)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { taskRepository.update(any()) }
+        assertEquals(20L, capturada.captured.taskId)
+        assertEquals(fecha.toEpochDay(), capturada.captured.date)
+        assertEquals("Gimnasio solo hoy", capturada.captured.overrideTitle)
+    }
+
+    @Test
+    fun `elegir esta y siguientes recorta la original y crea una tarea nueva`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val truncada = slot<TaskEntity>()
+        val nueva = slot<TaskEntity>()
+        coEvery { taskRepository.update(capture(truncada)) } returns Unit
+        coEvery { taskRepository.create(capture(nueva)) } returns 99L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onTitleChange("Gimnasio nuevo")
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(20L, truncada.captured.id)
+        assertEquals(LocalDate.of(2026, 1, 18).toEpochDay(), truncada.captured.recurrenceEnd)
+        assertEquals(fecha.toEpochDay(), nueva.captured.date)
+        assertEquals("Gimnasio nuevo", nueva.captured.title)
+    }
+
+    @Test
+    fun `borrar una tarea recurrente pide alcance`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        var borrado = false
+        viewModel.delete(onDeleted = { borrado = true })
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assert(!borrado)
+        assertEquals(PendingScopeAction.DELETE, viewModel.uiState.value.pendingScopeAction)
+    }
+
+    @Test
+    fun `borrar solo esta ocurrencia la marca como salteada`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val capturada = slot<TaskOccurrenceEntity>()
+        coEvery { taskOccurrenceRepository.create(capture(capturada)) } returns 1L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ONLY_THIS)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(20L, capturada.captured.taskId)
+        assertTrue(capturada.captured.skipped)
+        coVerify(exactly = 0) { taskRepository.delete(any()) }
+    }
+
+    @Test
+    fun `borrar todas una tarea recurrente borra la tarea base`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskRepository.delete(20L) } returns Unit
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { taskRepository.delete(20L) }
+    }
+
+    @Test
+    fun `cerrar el dialogo de alcance sin elegir no guarda ni borra nada`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onDismissScopeDialog()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.pendingScopeAction)
+        coVerify(exactly = 0) { taskRepository.delete(any()) }
     }
 }

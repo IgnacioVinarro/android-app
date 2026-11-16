@@ -29,6 +29,7 @@
 
     <!-- Crear tarea (PL-04) -->
     <string name="create_task_title">Nueva tarea</string>
+    <string name="edit_task_title">Editar tarea</string>
     <string name="create_task_field_title">Título</string>
     <string name="create_task_field_notes">Notas (opcional)</string>
     <string name="create_task_field_date">Fecha</string>
@@ -66,6 +67,29 @@
     <string name="a11y_resize_task">Mantener presionado y arrastrar para cambiar la duración de la tarea</string>
     <string name="a11y_task_color_selected">Color seleccionado</string>
     <string name="a11y_task_icon_selected">Ícono seleccionado</string>
+
+    <!-- Editar/borrar tarea (PL-15) -->
+    <string name="a11y_edit_task">Editar tarea</string>
+    <string name="edit_task_recurrence_notice">Tarea recurrente: el patrón de repetición no se edita acá.</string>
+    <string name="edit_scope_dialog_title_save">¿A qué ocurrencias aplica este cambio?</string>
+    <string name="edit_scope_dialog_title_delete">¿A qué ocurrencias aplica el borrado?</string>
+    <string name="edit_scope_only_this">Solo esta</string>
+    <string name="edit_scope_this_and_following">Esta y las siguientes</string>
+    <string name="edit_scope_all">Todas</string>
+
+    <!-- Rutinas (PL-09) -->
+    <string name="routines_title">Rutinas</string>
+    <string name="routine_editor_title">Rutina</string>
+    <string name="routine_editor_field_name">Nombre</string>
+    <string name="routine_editor_field_start_time">Hora de inicio</string>
+    <string name="routine_editor_items_title">Ítems</string>
+    <string name="routine_editor_add_item">Agregar ítem</string>
+    <string name="routine_editor_item_untitled">Sin título</string>
+    <string name="routine_editor_field_item_title">Título del ítem</string>
+    <string name="routine_editor_field_item_time">Hora</string>
+    <string name="a11y_add_routine">Crear rutina</string>
+    <string name="a11y_open_routines">Rutinas</string>
+    <string name="a11y_apply_routine_today">Aplicar %1$s a hoy</string>
 
     <!-- Accesibilidad -->
     <string name="a11y_nav_today">Pestaña Hoy, línea de tiempo del día</string>

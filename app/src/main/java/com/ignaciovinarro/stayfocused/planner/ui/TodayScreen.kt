@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +21,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -74,6 +77,8 @@ private const val MINUTES_IN_HOUR = 60
 @Composable
 fun TodayScreen(
     onAddTask: () -> Unit = {},
+    onOpenRoutines: () -> Unit = {},
+    onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel()
 ) {
@@ -112,12 +117,22 @@ fun TodayScreen(
                             availableWidth = availableWidth,
                             onToggleComplete = viewModel::onToggleComplete,
                             onMoveTask = viewModel::onMoveTask,
-                            onResizeTask = viewModel::onResizeTask
+                            onResizeTask = viewModel::onResizeTask,
+                            onEditTask = onEditTask
                         )
                         NowMarker(nowMinutes = uiState.nowMinutes)
                     }
                 }
             }
+        }
+
+        FloatingActionButton(
+            onClick = onOpenRoutines,
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+        ) {
+            Icon(Icons.Filled.Repeat, contentDescription = stringResource(R.string.a11y_open_routines))
         }
 
         FloatingActionButton(
@@ -212,7 +227,8 @@ private fun PositionedBlocks(
     availableWidth: Dp,
     onToggleComplete: (TimelineBlock) -> Unit,
     onMoveTask: (TimelineBlock, Int) -> Unit,
-    onResizeTask: (TimelineBlock, Int) -> Unit
+    onResizeTask: (TimelineBlock, Int) -> Unit,
+    onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit
 ) {
     val density = LocalDensity.current
     // Mientras se arrastra un bloque, se muestra esta posición/duración provisoria en vez de la
@@ -245,6 +261,14 @@ private fun PositionedBlocks(
                 colorKey = block.colorKey,
                 completed = block.completed,
                 onToggleComplete = { onToggleComplete(block) },
+                onEditTask = if (block.source == TIMELINE_SOURCE_PLANNER) {
+                    {
+                        val taskId = block.route.substringAfterLast("/").toLongOrNull()
+                        taskId?.let { onEditTask(it, block.date.toEpochDay()) }
+                    }
+                } else {
+                    null
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
@@ -299,6 +323,7 @@ private fun TimelineBlockCard(
     colorKey: String,
     completed: Boolean,
     onToggleComplete: () -> Unit,
+    onEditTask: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val color = colorForKey(colorKey)
@@ -326,8 +351,23 @@ private fun TimelineBlockCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 textDecoration = if (completed) TextDecoration.LineThrough else null,
-                style = MaterialTheme.typography.labelMedium
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f, fill = false)
             )
+            // Ícono chico para editar/borrar (PL-15): el bloque puede ser angosto, así que el área
+            // táctil acá es más chica que los 48 dp recomendados, mismo criterio pragmático que
+            // el asa de redimensionar (RESIZE_HANDLE_HEIGHT).
+            if (onEditTask != null) {
+                Icon(
+                    imageVector = Icons.Filled.Edit,
+                    contentDescription = stringResource(R.string.a11y_edit_task),
+                    tint = Color.White,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(16.dp)
+                        .clickable(onClick = onEditTask)
+                )
+            }
         }
     }
 }

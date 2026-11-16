@@ -1,14 +1,22 @@
 package com.ignaciovinarro.stayfocused.planner.ui
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
 import com.ignaciovinarro.stayfocused.core.ui.TaskColorKey
 import com.ignaciovinarro.stayfocused.core.ui.TaskIconKey
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
+import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
+import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
+import com.ignaciovinarro.stayfocused.planner.domain.EditScope
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
+import com.ignaciovinarro.stayfocused.planner.domain.TaskEditFields
+import com.ignaciovinarro.stayfocused.planner.domain.applyEditFromDate
+import com.ignaciovinarro.stayfocused.planner.domain.applyEditToAll
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
+import com.ignaciovinarro.stayfocused.planner.domain.truncateRecurrenceFromDate
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -21,7 +29,21 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+// 0L = tarea nueva, todavía no guardada. Igual convención que RoutineEditorViewModel.
+private const val ARG_TASK_ID = "taskId"
+// Fecha de la ocurrencia puntual que se está editando (solo aplica a tareas recurrentes); -1 =
+// no viene de un bloque puntual (tarea nueva, o tarea no recurrente).
+private const val ARG_OCCURRENCE_DATE = "date"
+private const val SIN_FECHA_DE_OCURRENCIA = -1L
+
+// Qué acción quedó pendiente de elegir alcance (PL-15): se le pregunta al usuario solo cuando la
+// tarea es recurrente, antes de guardar o de borrar.
+enum class PendingScopeAction { SAVE, DELETE }
+
 data class CreateTaskUiState(
+    val taskId: Long? = null, // null = tarea nueva; si no es null, la pantalla está en modo edición
+    val isRecurringTask: Boolean = false,
+    val pendingScopeAction: PendingScopeAction? = null,
     val title: String = "",
     val date: LocalDate = LocalDate.now(),
     val hasStartTime: Boolean = true,
@@ -31,7 +53,8 @@ data class CreateTaskUiState(
     val colorKey: String = TaskColorKey.BLUE.key,
     val notes: String = "",
     // Recurrencia (PL-08): solo disponible con hora asignada, por eso onHasStartTimeChange la
-    // apaga si se activa "sin hora" (ver nota de alcance en el ticket 0009).
+    // apaga si se activa "sin hora" (ver nota de alcance en el ticket 0009). En modo edición de
+    // una tarea recurrente (PL-15) esta sección no se muestra: el patrón no se edita acá.
     val recurrenceEnabled: Boolean = false,
     val recurrenceType: RecurrenceType = RecurrenceType.DAILY,
     val recurrenceInterval: Int = 1,
@@ -52,17 +75,70 @@ data class CreateTaskUiState(
 
 @HiltViewModel
 class CreateTaskViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val taskRepository: TaskRepository,
+    private val taskOccurrenceRepository: TaskOccurrenceRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    private val existingTaskId: Long = savedStateHandle.get<Long>(ARG_TASK_ID)?.takeIf { it != 0L } ?: 0L
+    private val occurrenceEpochDay: Long? =
+        savedStateHandle.get<Long>(ARG_OCCURRENCE_DATE)?.takeIf { it != SIN_FECHA_DE_OCURRENCIA }
 
     private val _uiState = MutableStateFlow(CreateTaskUiState())
     val uiState: StateFlow<CreateTaskUiState> = _uiState.asStateFlow()
 
+    // Tal como están en la base, para no perder `id`/`uuid`/`createdAt` al editar (mismo criterio
+    // que RoutineEditorViewModel) y para tener el patrón de recurrencia original a mano al armar
+    // "esta y siguientes".
+    private var loadedTask: TaskEntity? = null
+    private var loadedOccurrence: TaskOccurrenceEntity? = null
+
+    // Callback de navegación (onSaved/onDeleted) a invocar cuando la acción termine; si la tarea
+    // es recurrente, eso pasa después de que el usuario elige el alcance en el diálogo.
+    private var pendingCompletion: (() -> Unit)? = null
+
     init {
-        viewModelScope.launch {
-            val defaultDuration = settingsRepository.defaultTaskDuration.first()
-            _uiState.update { it.copy(durationMinutes = defaultDuration) }
+        if (existingTaskId == 0L) {
+            viewModelScope.launch {
+                val defaultDuration = settingsRepository.defaultTaskDuration.first()
+                _uiState.update { it.copy(durationMinutes = defaultDuration) }
+            }
+        } else {
+            viewModelScope.launch {
+                val task = taskRepository.getById(existingTaskId) ?: return@launch
+                loadedTask = task
+                val isRecurring = task.recurrenceType != null
+                val effectiveDate = occurrenceEpochDay ?: task.date
+                val occurrence = if (isRecurring) {
+                    taskOccurrenceRepository.getByTaskAndDate(task.id, effectiveDate)
+                } else {
+                    null
+                }
+                loadedOccurrence = occurrence
+
+                _uiState.update {
+                    it.copy(
+                        taskId = task.id,
+                        isRecurringTask = isRecurring,
+                        title = occurrence?.overrideTitle ?: task.title,
+                        notes = (occurrence?.overrideNotes ?: task.notes) ?: "",
+                        date = LocalDate.ofEpochDay(effectiveDate),
+                        hasStartTime = task.startMinutes != null,
+                        startTime = (occurrence?.overrideStartMinutes ?: task.startMinutes)?.toLocalTime()
+                            ?: it.startTime,
+                        durationMinutes = occurrence?.overrideDurationMinutes ?: task.durationMinutes,
+                        iconKey = occurrence?.overrideIconKey ?: task.iconKey,
+                        colorKey = occurrence?.overrideColorKey ?: task.colorKey,
+                        recurrenceEnabled = isRecurring,
+                        recurrenceType = task.recurrenceType?.let(RecurrenceType::valueOf) ?: it.recurrenceType,
+                        recurrenceInterval = task.recurrenceInterval ?: it.recurrenceInterval,
+                        recurrenceDays = task.recurrenceDays ?: it.recurrenceDays,
+                        hasRecurrenceEnd = task.recurrenceEnd != null,
+                        recurrenceEnd = task.recurrenceEnd?.let(LocalDate::ofEpochDay) ?: it.recurrenceEnd
+                    )
+                }
+            }
         }
     }
 
@@ -101,38 +177,155 @@ class CreateTaskViewModel @Inject constructor(
         val state = _uiState.value
         if (!state.isValid) return
         viewModelScope.launch {
-            taskRepository.create(
-                TaskEntity(
-                    title = state.title.trim(),
-                    notes = state.notes.ifBlank { null },
-                    date = state.date.toEpochDay(),
-                    startMinutes = if (state.hasStartTime) {
-                        state.startTime.hour * 60 + state.startTime.minute
-                    } else {
-                        null
-                    },
-                    durationMinutes = state.durationMinutes,
-                    iconKey = state.iconKey,
-                    colorKey = state.colorKey,
-                    recurrenceType = if (state.recurrenceEnabled) state.recurrenceType.name else null,
-                    recurrenceInterval = if (state.recurrenceEnabled && state.recurrenceType == RecurrenceType.EVERY_N_DAYS) {
-                        state.recurrenceInterval
-                    } else {
-                        null
-                    },
-                    recurrenceDays = if (state.recurrenceEnabled && state.recurrenceType == RecurrenceType.SPECIFIC_DAYS) {
-                        state.recurrenceDays
-                    } else {
-                        null
-                    },
-                    recurrenceEnd = if (state.recurrenceEnabled && state.hasRecurrenceEnd) {
-                        state.recurrenceEnd.toEpochDay()
-                    } else {
-                        null
-                    }
-                )
-            )
-            onSaved()
+            if (existingTaskId == 0L) {
+                taskRepository.create(buildTaskFromState(newTaskSeed(), state))
+                onSaved()
+                return@launch
+            }
+            val task = loadedTask ?: return@launch
+            if (task.recurrenceType == null) {
+                taskRepository.update(buildTaskFromState(task, state))
+                onSaved()
+                return@launch
+            }
+            pendingCompletion = onSaved
+            _uiState.update { it.copy(pendingScopeAction = PendingScopeAction.SAVE) }
         }
     }
+
+    fun delete(onDeleted: () -> Unit) {
+        val task = loadedTask ?: return
+        if (task.recurrenceType == null) {
+            viewModelScope.launch {
+                taskRepository.delete(task.id)
+                onDeleted()
+            }
+            return
+        }
+        pendingCompletion = onDeleted
+        _uiState.update { it.copy(pendingScopeAction = PendingScopeAction.DELETE) }
+    }
+
+    fun onScopeChosen(scope: EditScope) {
+        val action = _uiState.value.pendingScopeAction ?: return
+        val completion = pendingCompletion
+        pendingCompletion = null
+        _uiState.update { it.copy(pendingScopeAction = null) }
+        viewModelScope.launch {
+            when (action) {
+                PendingScopeAction.SAVE -> performScopedSave(scope)
+                PendingScopeAction.DELETE -> performScopedDelete(scope)
+            }
+            completion?.invoke()
+        }
+    }
+
+    fun onDismissScopeDialog() {
+        pendingCompletion = null
+        _uiState.update { it.copy(pendingScopeAction = null) }
+    }
+
+    private suspend fun performScopedSave(scope: EditScope) {
+        val task = loadedTask ?: return
+        val state = _uiState.value
+        val edit = state.toEditFields()
+        val date = effectiveDate(task)
+
+        when (scope) {
+            EditScope.ALL -> taskRepository.update(applyEditToAll(task, edit))
+            EditScope.ONLY_THIS -> upsertOccurrenceOverride(task, date, edit)
+            EditScope.THIS_AND_FOLLOWING -> {
+                val (truncada, nueva) = applyEditFromDate(task, edit, date)
+                taskRepository.update(truncada)
+                nueva?.let { taskRepository.create(it) }
+            }
+        }
+    }
+
+    private suspend fun performScopedDelete(scope: EditScope) {
+        val task = loadedTask ?: return
+        val date = effectiveDate(task)
+
+        when (scope) {
+            EditScope.ALL -> taskRepository.delete(task.id)
+            EditScope.ONLY_THIS -> upsertOccurrenceSkip(task, date)
+            EditScope.THIS_AND_FOLLOWING -> {
+                val startDate = LocalDate.ofEpochDay(task.date)
+                if (!date.isAfter(startDate)) {
+                    taskRepository.delete(task.id) // primera ocurrencia: equivale a borrar todas
+                } else {
+                    taskRepository.update(truncateRecurrenceFromDate(task, date))
+                }
+            }
+        }
+    }
+
+    private suspend fun upsertOccurrenceOverride(task: TaskEntity, date: LocalDate, edit: TaskEditFields) {
+        val epochDay = date.toEpochDay()
+        val existing = loadedOccurrence ?: taskOccurrenceRepository.getByTaskAndDate(task.id, epochDay)
+        val overridden = (existing ?: TaskOccurrenceEntity(taskId = task.id, date = epochDay)).copy(
+            overrideTitle = edit.title,
+            overrideNotes = edit.notes,
+            overrideStartMinutes = edit.startMinutes,
+            overrideDurationMinutes = edit.durationMinutes,
+            overrideIconKey = edit.iconKey,
+            overrideColorKey = edit.colorKey
+        )
+        if (existing == null) taskOccurrenceRepository.create(overridden) else taskOccurrenceRepository.update(overridden)
+    }
+
+    private suspend fun upsertOccurrenceSkip(task: TaskEntity, date: LocalDate) {
+        val epochDay = date.toEpochDay()
+        val existing = loadedOccurrence ?: taskOccurrenceRepository.getByTaskAndDate(task.id, epochDay)
+        val saltada = (existing ?: TaskOccurrenceEntity(taskId = task.id, date = epochDay)).copy(skipped = true)
+        if (existing == null) taskOccurrenceRepository.create(saltada) else taskOccurrenceRepository.update(saltada)
+    }
+
+    private fun effectiveDate(task: TaskEntity): LocalDate = LocalDate.ofEpochDay(occurrenceEpochDay ?: task.date)
+
+    private fun newTaskSeed(): TaskEntity = TaskEntity(title = "", date = 0L, durationMinutes = 0, iconKey = "", colorKey = "")
+
+    private fun buildTaskFromState(base: TaskEntity, state: CreateTaskUiState): TaskEntity = base.copy(
+        title = state.title.trim(),
+        notes = state.notes.ifBlank { null },
+        date = state.date.toEpochDay(),
+        startMinutes = if (state.hasStartTime) {
+            state.startTime.hour * 60 + state.startTime.minute
+        } else {
+            null
+        },
+        durationMinutes = state.durationMinutes,
+        iconKey = state.iconKey,
+        colorKey = state.colorKey,
+        recurrenceType = if (state.recurrenceEnabled) state.recurrenceType.name else null,
+        recurrenceInterval = if (state.recurrenceEnabled && state.recurrenceType == RecurrenceType.EVERY_N_DAYS) {
+            state.recurrenceInterval
+        } else {
+            null
+        },
+        recurrenceDays = if (state.recurrenceEnabled && state.recurrenceType == RecurrenceType.SPECIFIC_DAYS) {
+            state.recurrenceDays
+        } else {
+            null
+        },
+        recurrenceEnd = if (state.recurrenceEnabled && state.hasRecurrenceEnd) {
+            state.recurrenceEnd.toEpochDay()
+        } else {
+            null
+        }
+    )
+
+    private fun CreateTaskUiState.toEditFields() = TaskEditFields(
+        title = title.trim(),
+        notes = notes.ifBlank { null },
+        startMinutes = startTime.hour * 60 + startTime.minute,
+        durationMinutes = durationMinutes,
+        iconKey = iconKey,
+        colorKey = colorKey
+    )
+}
+
+private fun Int.toLocalTime(): LocalTime {
+    val normalizado = Math.floorMod(this, 24 * 60)
+    return LocalTime.of(normalizado / 60, normalizado % 60)
 }
