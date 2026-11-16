@@ -1,7 +1,7 @@
 # Ticket 0011 – Editar y borrar una tarea, con opciones de recurrencia (PL-15)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Hasta ahora la app solo puede *crear* tareas: no hay forma de editarlas ni borrarlas. Este paso
@@ -72,9 +72,9 @@ editar o borrar una tarea recurrente ofreciendo **"solo esta"**, **"esta y sigui
 - [x] Prueba instrumentada: migración 3→4 en `MigrationTest`
 - [x] Verificar compilación: `./gradlew assembleDebug` (y `assembleDebugAndroidTest`)
 - [x] Correr pruebas: `./gradlew test` y `./gradlew lint`
-- [ ] Probar manualmente en el emulador/teléfono: editar una tarea simple; editar una recurrente
+- [x] Probar manualmente en el emulador/teléfono: editar una tarea simple; editar una recurrente
       con cada alcance y confirmar el efecto en la línea de tiempo de varios días; borrar con cada
-      alcance — **pendiente, lo tenés que hacer vos**
+      alcance — probado por el desarrollador, OK
 
 ## Notas
 - Había un emulador conectado durante este paso, así que se corrió `./gradlew connectedAndroidTest`

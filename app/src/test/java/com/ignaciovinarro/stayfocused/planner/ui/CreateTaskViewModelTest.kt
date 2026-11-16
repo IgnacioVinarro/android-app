@@ -2,11 +2,15 @@ package com.ignaciovinarro.stayfocused.planner.ui
 
 import androidx.lifecycle.SavedStateHandle
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
+import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
+import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
 import com.ignaciovinarro.stayfocused.planner.domain.EditScope
+import com.ignaciovinarro.stayfocused.planner.domain.MAX_REMINDER_MINUTES_BEFORE
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import io.mockk.coEvery
@@ -35,6 +39,7 @@ class CreateTaskViewModelTest {
 
     private val taskRepository = mockk<TaskRepository>()
     private val taskOccurrenceRepository = mockk<TaskOccurrenceRepository>()
+    private val reminderRepository = mockk<ReminderRepository>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>()
     private val dispatcher = StandardTestDispatcher()
 
@@ -42,6 +47,7 @@ class CreateTaskViewModelTest {
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         every { settingsRepository.defaultTaskDuration } returns flowOf(45)
+        coEvery { reminderRepository.getByOwner(any(), any()) } returns emptyList()
     }
 
     @After
@@ -54,6 +60,7 @@ class CreateTaskViewModelTest {
             SavedStateHandle(mapOf("taskId" to 0L)),
             taskRepository,
             taskOccurrenceRepository,
+            reminderRepository,
             settingsRepository
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -65,6 +72,7 @@ class CreateTaskViewModelTest {
             SavedStateHandle(mapOf("taskId" to taskId, "date" to occurrenceDate)),
             taskRepository,
             taskOccurrenceRepository,
+            reminderRepository,
             settingsRepository
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -499,4 +507,248 @@ class CreateTaskViewModelTest {
         assertNull(viewModel.uiState.value.pendingScopeAction)
         coVerify(exactly = 0) { taskRepository.delete(any()) }
     }
+
+    // --- Recordatorios (PL-10, ticket 0012) ---
+
+    @Test
+    fun `prender recordatorios los deja ordenados y sin repetidos`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+
+        viewModel.onReminderToggle(30)
+        viewModel.onReminderToggle(0)
+        viewModel.onReminderToggle(10)
+
+        assertEquals(listOf(0, 10, 30), viewModel.uiState.value.reminderMinutes)
+    }
+
+    @Test
+    fun `tocar dos veces un recordatorio lo apaga`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+
+        viewModel.onReminderToggle(15)
+        viewModel.onReminderToggle(15)
+
+        assertEquals(emptyList<Int>(), viewModel.uiState.value.reminderMinutes)
+    }
+
+    @Test
+    fun `un recordatorio fuera de rango se ignora`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+
+        viewModel.onReminderToggle(-1)
+        viewModel.onReminderToggle(MAX_REMINDER_MINUTES_BEFORE + 1)
+        viewModel.onReminderToggle(MAX_REMINDER_MINUTES_BEFORE)
+
+        assertEquals(listOf(MAX_REMINDER_MINUTES_BEFORE), viewModel.uiState.value.reminderMinutes)
+    }
+
+    @Test
+    fun `crear una tarea guarda los recordatorios elegidos para el id nuevo`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        coEvery { taskRepository.create(any()) } returns 7L
+
+        viewModel.onTitleChange("Reunion")
+        viewModel.onReminderToggle(45) // minutos libres
+        viewModel.onReminderToggle(0)
+        viewModel.onReminderToggle(15)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 7L, listOf(0, 15, 45)) }
+    }
+
+    @Test
+    fun `sin hora no guarda recordatorios aunque haya elegidos`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        coEvery { taskRepository.create(any()) } returns 7L
+
+        viewModel.onTitleChange("Leer")
+        viewModel.onReminderToggle(10)
+        viewModel.onHasStartTimeChange(false)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 7L, emptyList()) }
+    }
+
+    @Test
+    fun `apagar sin hora conserva la seleccion de recordatorios`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+
+        viewModel.onReminderToggle(10)
+        viewModel.onHasStartTimeChange(false)
+        viewModel.onHasStartTimeChange(true)
+
+        assertEquals(listOf(10), viewModel.uiState.value.reminderMinutes)
+    }
+
+    @Test
+    fun `cargar una tarea existente precarga sus recordatorios ordenados`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { reminderRepository.getByOwner(REMINDER_OWNER_TASK, 10L) } returns listOf(
+            ReminderEntity(ownerId = 10L, minutesBefore = 30),
+            ReminderEntity(ownerId = 10L, minutesBefore = 0)
+        )
+
+        val viewModel = crearViewModelEditando(10L)
+
+        assertEquals(listOf(0, 30), viewModel.uiState.value.reminderMinutes)
+    }
+
+    @Test
+    fun `editar una tarea simple reemplaza sus recordatorios`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { taskRepository.update(any()) } returns Unit
+        coEvery { reminderRepository.getByOwner(REMINDER_OWNER_TASK, 10L) } returns listOf(
+            ReminderEntity(ownerId = 10L, minutesBefore = 30)
+        )
+        val viewModel = crearViewModelEditando(10L)
+
+        viewModel.onReminderToggle(30) // lo saca
+        viewModel.onReminderToggle(5)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 10L, listOf(5)) }
+    }
+
+    @Test
+    fun `editar una recurrente con todas reemplaza los recordatorios de la tarea`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskRepository.update(any()) } returns Unit
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onReminderToggle(60)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 20L, listOf(60)) }
+    }
+
+    @Test
+    fun `editar una recurrente con solo esta no toca los recordatorios`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskOccurrenceRepository.create(any()) } returns 1L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onReminderToggle(60)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ONLY_THIS)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { reminderRepository.replaceForOwner(any(), any(), any()) }
+    }
+
+    @Test
+    fun `esta y siguientes deja los recordatorios en la original y los editados en la nueva`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskRepository.update(any()) } returns Unit
+        coEvery { taskRepository.create(any()) } returns 99L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onReminderToggle(15)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 99L, listOf(15)) }
+        coVerify(exactly = 0) { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 20L, any()) }
+    }
+
+    @Test
+    fun `esta y siguientes desde la primera ocurrencia equivale a todas y reemplaza en la original`() =
+        runTest(dispatcher) {
+            val primera = LocalDate.ofEpochDay(tareaRecurrente.date)
+            coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+            coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, primera.toEpochDay()) } returns null
+            coEvery { taskRepository.update(any()) } returns Unit
+            val viewModel = crearViewModelEditando(20L, primera.toEpochDay())
+
+            viewModel.onReminderToggle(15)
+            viewModel.save {}
+            dispatcher.scheduler.advanceUntilIdle()
+            viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 20L, listOf(15)) }
+            coVerify(exactly = 0) { taskRepository.create(any()) }
+        }
+
+    @Test
+    fun `borrar una tarea simple borra tambien sus recordatorios`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { taskRepository.delete(10L) } returns Unit
+        val viewModel = crearViewModelEditando(10L)
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, 10L) }
+    }
+
+    @Test
+    fun `borrar todas una recurrente borra tambien sus recordatorios`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskRepository.delete(20L) } returns Unit
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, 20L) }
+    }
+
+    @Test
+    fun `borrar solo esta o esta y siguientes (no la primera) conserva los recordatorios`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskOccurrenceRepository.create(any()) } returns 1L
+        coEvery { taskRepository.update(any()) } returns Unit
+
+        val soloEsta = crearViewModelEditando(20L, fecha.toEpochDay())
+        soloEsta.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        soloEsta.onScopeChosen(EditScope.ONLY_THIS)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val siguientes = crearViewModelEditando(20L, fecha.toEpochDay())
+        siguientes.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        siguientes.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { reminderRepository.deleteByOwner(any(), any()) }
+    }
+
+    @Test
+    fun `borrar esta y siguientes desde la primera ocurrencia borra tambien los recordatorios`() =
+        runTest(dispatcher) {
+            val primera = LocalDate.ofEpochDay(tareaRecurrente.date)
+            coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+            coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, primera.toEpochDay()) } returns null
+            coEvery { taskRepository.delete(20L) } returns Unit
+            val viewModel = crearViewModelEditando(20L, primera.toEpochDay())
+
+            viewModel.delete {}
+            dispatcher.scheduler.advanceUntilIdle()
+            viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            coVerify { reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, 20L) }
+        }
 }

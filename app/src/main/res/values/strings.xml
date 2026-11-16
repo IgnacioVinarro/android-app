@@ -71,6 +71,27 @@
     <!-- Editar/borrar tarea (PL-15) -->
     <string name="a11y_edit_task">Editar tarea</string>
     <string name="edit_task_recurrence_notice">Tarea recurrente: el patrón de repetición no se edita acá.</string>
+
+    <!-- Recordatorios de una tarea (PL-10) -->
+    <string name="reminders_section_title">Recordatorios</string>
+    <string name="reminder_at_time">A la hora</string>
+    <string name="reminder_other">Otro…</string>
+    <plurals name="reminder_minutes_before">
+        <item quantity="one">%d minuto antes</item>
+        <item quantity="other">%d minutos antes</item>
+    </plurals>
+    <plurals name="reminder_hours_before">
+        <item quantity="one">%d hora antes</item>
+        <item quantity="other">%d horas antes</item>
+    </plurals>
+    <plurals name="reminder_days_before">
+        <item quantity="one">%d día antes</item>
+        <item quantity="other">%d días antes</item>
+    </plurals>
+    <string name="reminder_custom_dialog_title">Recordatorio personalizado</string>
+    <string name="reminder_custom_field">Minutos antes</string>
+    <string name="reminder_custom_error">Escribí un número entre 0 y %1$d</string>
+    <string name="reminder_recurring_notice">En una tarea recurrente, los recordatorios se aplican con «Todas» o «Esta y las siguientes». Con «Solo esta» no cambian.</string>
     <string name="edit_scope_dialog_title_save">¿A qué ocurrencias aplica este cambio?</string>
     <string name="edit_scope_dialog_title_delete">¿A qué ocurrencias aplica el borrado?</string>
     <string name="edit_scope_only_this">Solo esta</string>

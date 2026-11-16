@@ -95,3 +95,32 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         db.execSQL("ALTER TABLE task_occurrence ADD COLUMN overrideColorKey TEXT")
     }
 }
+
+// Versión 5 (PL-10, parte 1): tabla `reminder` con los recordatorios de una tarea (u otro dueño).
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `reminder` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `uuid` TEXT NOT NULL,
+                `ownerType` TEXT NOT NULL,
+                `ownerId` INTEGER NOT NULL,
+                `minutesBefore` INTEGER NOT NULL,
+                `kind` TEXT NOT NULL,
+                `soundKey` TEXT,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_reminder_uuid` ON `reminder` (`uuid`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_reminder_ownerType_ownerId` " +
+                "ON `reminder` (`ownerType`, `ownerId`)"
+        )
+    }
+}

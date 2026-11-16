@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
 import com.ignaciovinarro.stayfocused.core.ui.TaskColorKey
 import com.ignaciovinarro.stayfocused.core.ui.TaskIconKey
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
+import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
@@ -15,6 +17,8 @@ import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.planner.domain.TaskEditFields
 import com.ignaciovinarro.stayfocused.planner.domain.applyEditFromDate
 import com.ignaciovinarro.stayfocused.planner.domain.applyEditToAll
+import com.ignaciovinarro.stayfocused.planner.domain.isValidReminderMinutes
+import com.ignaciovinarro.stayfocused.planner.domain.normalizeReminderMinutes
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import com.ignaciovinarro.stayfocused.planner.domain.truncateRecurrenceFromDate
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -60,7 +64,10 @@ data class CreateTaskUiState(
     val recurrenceInterval: Int = 1,
     val recurrenceDays: Int = 0,
     val hasRecurrenceEnd: Boolean = false,
-    val recurrenceEnd: LocalDate = LocalDate.now()
+    val recurrenceEnd: LocalDate = LocalDate.now(),
+    // Recordatorios (PL-10): minutos antes de la hora de inicio, sin repetidos y ordenados. Solo
+    // aplican con hora asignada; si se activa "sin hora" no se guarda ninguno (ticket 0012).
+    val reminderMinutes: List<Int> = emptyList()
 ) {
     val isValid: Boolean
         get() = title.isNotBlank() && durationMinutes > 0 && (!recurrenceEnabled || isRecurrenceValid)
@@ -78,6 +85,7 @@ class CreateTaskViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val taskRepository: TaskRepository,
     private val taskOccurrenceRepository: TaskOccurrenceRepository,
+    private val reminderRepository: ReminderRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
@@ -116,6 +124,8 @@ class CreateTaskViewModel @Inject constructor(
                     null
                 }
                 loadedOccurrence = occurrence
+                val reminders = reminderRepository.getByOwner(REMINDER_OWNER_TASK, task.id)
+                    .map { it.minutesBefore }
 
                 _uiState.update {
                     it.copy(
@@ -135,7 +145,8 @@ class CreateTaskViewModel @Inject constructor(
                         recurrenceInterval = task.recurrenceInterval ?: it.recurrenceInterval,
                         recurrenceDays = task.recurrenceDays ?: it.recurrenceDays,
                         hasRecurrenceEnd = task.recurrenceEnd != null,
-                        recurrenceEnd = task.recurrenceEnd?.let(LocalDate::ofEpochDay) ?: it.recurrenceEnd
+                        recurrenceEnd = task.recurrenceEnd?.let(LocalDate::ofEpochDay) ?: it.recurrenceEnd,
+                        reminderMinutes = normalizeReminderMinutes(reminders)
                     )
                 }
             }
@@ -170,6 +181,17 @@ class CreateTaskViewModel @Inject constructor(
         it.copy(recurrenceDays = nuevaMascara)
     }
 
+    // Prende o apaga un recordatorio de la lista (PL-10). Ignora valores fuera de rango.
+    fun onReminderToggle(minutesBefore: Int) = _uiState.update {
+        if (!isValidReminderMinutes(minutesBefore)) return@update it
+        val nuevos = if (minutesBefore in it.reminderMinutes) {
+            it.reminderMinutes - minutesBefore
+        } else {
+            it.reminderMinutes + minutesBefore
+        }
+        it.copy(reminderMinutes = normalizeReminderMinutes(nuevos))
+    }
+
     fun onHasRecurrenceEndChange(value: Boolean) = _uiState.update { it.copy(hasRecurrenceEnd = value) }
     fun onRecurrenceEndChange(value: LocalDate) = _uiState.update { it.copy(recurrenceEnd = value) }
 
@@ -178,13 +200,15 @@ class CreateTaskViewModel @Inject constructor(
         if (!state.isValid) return
         viewModelScope.launch {
             if (existingTaskId == 0L) {
-                taskRepository.create(buildTaskFromState(newTaskSeed(), state))
+                val newId = taskRepository.create(buildTaskFromState(newTaskSeed(), state))
+                saveReminders(newId, state)
                 onSaved()
                 return@launch
             }
             val task = loadedTask ?: return@launch
             if (task.recurrenceType == null) {
                 taskRepository.update(buildTaskFromState(task, state))
+                saveReminders(task.id, state)
                 onSaved()
                 return@launch
             }
@@ -197,7 +221,7 @@ class CreateTaskViewModel @Inject constructor(
         val task = loadedTask ?: return
         if (task.recurrenceType == null) {
             viewModelScope.launch {
-                taskRepository.delete(task.id)
+                deleteTaskAndReminders(task.id)
                 onDeleted()
             }
             return
@@ -232,12 +256,21 @@ class CreateTaskViewModel @Inject constructor(
         val date = effectiveDate(task)
 
         when (scope) {
-            EditScope.ALL -> taskRepository.update(applyEditToAll(task, edit))
+            EditScope.ALL -> {
+                taskRepository.update(applyEditToAll(task, edit))
+                saveReminders(task.id, state)
+            }
+            // Los recordatorios son de la tarea, no de la ocurrencia: "solo esta" no los toca.
             EditScope.ONLY_THIS -> upsertOccurrenceOverride(task, date, edit)
             EditScope.THIS_AND_FOLLOWING -> {
                 val (truncada, nueva) = applyEditFromDate(task, edit, date)
                 taskRepository.update(truncada)
-                nueva?.let { taskRepository.create(it) }
+                if (nueva != null) {
+                    // La original conserva sus recordatorios; la nueva se lleva los editados.
+                    saveReminders(taskRepository.create(nueva), state)
+                } else {
+                    saveReminders(task.id, state) // primera ocurrencia: equivale a "todas"
+                }
             }
         }
     }
@@ -247,12 +280,12 @@ class CreateTaskViewModel @Inject constructor(
         val date = effectiveDate(task)
 
         when (scope) {
-            EditScope.ALL -> taskRepository.delete(task.id)
+            EditScope.ALL -> deleteTaskAndReminders(task.id)
             EditScope.ONLY_THIS -> upsertOccurrenceSkip(task, date)
             EditScope.THIS_AND_FOLLOWING -> {
                 val startDate = LocalDate.ofEpochDay(task.date)
                 if (!date.isAfter(startDate)) {
-                    taskRepository.delete(task.id) // primera ocurrencia: equivale a borrar todas
+                    deleteTaskAndReminders(task.id) // primera ocurrencia: equivale a borrar todas
                 } else {
                     taskRepository.update(truncateRecurrenceFromDate(task, date))
                 }
@@ -279,6 +312,18 @@ class CreateTaskViewModel @Inject constructor(
         val existing = loadedOccurrence ?: taskOccurrenceRepository.getByTaskAndDate(task.id, epochDay)
         val saltada = (existing ?: TaskOccurrenceEntity(taskId = task.id, date = epochDay)).copy(skipped = true)
         if (existing == null) taskOccurrenceRepository.create(saltada) else taskOccurrenceRepository.update(saltada)
+    }
+
+    // Sin hora no hay recordatorios (PL-10): se guarda el conjunto vacío.
+    private suspend fun saveReminders(taskId: Long, state: CreateTaskUiState) {
+        val minutes = if (state.hasStartTime) normalizeReminderMinutes(state.reminderMinutes) else emptyList()
+        reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, taskId, minutes)
+    }
+
+    // Las filas hijas no se borran solas (CLAUDE.md): al borrar la tarea se borran sus recordatorios.
+    private suspend fun deleteTaskAndReminders(taskId: Long) {
+        taskRepository.delete(taskId)
+        reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, taskId)
     }
 
     private fun effectiveDate(task: TaskEntity): LocalDate = LocalDate.ofEpochDay(occurrenceEpochDay ?: task.date)

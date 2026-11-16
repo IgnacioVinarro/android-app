@@ -4,14 +4,18 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -42,7 +46,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ignaciovinarro.stayfocused.R
@@ -50,8 +56,13 @@ import com.ignaciovinarro.stayfocused.core.ui.TaskColorSelector
 import com.ignaciovinarro.stayfocused.core.ui.TaskIconSelector
 import com.ignaciovinarro.stayfocused.core.ui.TimePickerDialog
 import com.ignaciovinarro.stayfocused.planner.domain.EditScope
+import com.ignaciovinarro.stayfocused.planner.domain.MAX_REMINDER_MINUTES_BEFORE
+import com.ignaciovinarro.stayfocused.planner.domain.PRESET_REMINDER_MINUTES
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
+import com.ignaciovinarro.stayfocused.planner.domain.ReminderUnit
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
+import com.ignaciovinarro.stayfocused.planner.domain.isValidReminderMinutes
+import com.ignaciovinarro.stayfocused.planner.domain.reminderAmount
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -69,6 +80,7 @@ fun CreateTaskScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
     var showRecurrenceEndPicker by remember { mutableStateOf(false) }
+    var showCustomReminderDialog by remember { mutableStateOf(false) }
 
     val isEditing = uiState.taskId != null
     val isEditingRecurring = isEditing && uiState.isRecurringTask
@@ -158,6 +170,16 @@ fun CreateTaskScreen(
                 )
             }
 
+            // Recordatorios (PL-10): solo con hora de inicio, no hay hora de aviso sin hora de inicio.
+            if (uiState.hasStartTime) {
+                ReminderSection(
+                    selectedMinutes = uiState.reminderMinutes,
+                    showRecurringNotice = isEditingRecurring,
+                    onToggle = viewModel::onReminderToggle,
+                    onOther = { showCustomReminderDialog = true }
+                )
+            }
+
             Text(stringResource(R.string.create_task_field_icon), style = MaterialTheme.typography.labelLarge)
             TaskIconSelector(selectedKey = uiState.iconKey, onSelect = viewModel::onIconChange)
 
@@ -236,6 +258,16 @@ fun CreateTaskScreen(
                 TextButton(onClick = { showRecurrenceEndPicker = false }) { Text(stringResource(R.string.action_cancel)) }
             }
         ) { DatePicker(state = recurrenceEndPickerState) }
+    }
+
+    if (showCustomReminderDialog) {
+        CustomReminderDialog(
+            onConfirm = { minutes ->
+                if (minutes !in uiState.reminderMinutes) viewModel.onReminderToggle(minutes)
+                showCustomReminderDialog = false
+            },
+            onDismiss = { showCustomReminderDialog = false }
+        )
     }
 
     uiState.pendingScopeAction?.let { pendingAction ->
@@ -345,6 +377,95 @@ private fun RecurrenceSection(
             }
         }
     }
+}
+
+// Las opciones fijas más los valores libres ya elegidos, de menor a mayor antelación. Un valor
+// libre que se destilda desaparece de la lista (no es una opción fija).
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ReminderSection(
+    selectedMinutes: List<Int>,
+    showRecurringNotice: Boolean,
+    onToggle: (Int) -> Unit,
+    onOther: () -> Unit
+) {
+    val options = (PRESET_REMINDER_MINUTES + selectedMinutes).distinct().sorted()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.reminders_section_title), style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { minutes ->
+                val selected = minutes in selectedMinutes
+                FilterChip(
+                    selected = selected,
+                    onClick = { onToggle(minutes) },
+                    label = { Text(reminderLabel(minutes)) },
+                    // El estado no se indica solo con el color: el tilde también lo marca.
+                    leadingIcon = if (selected) {
+                        { Icon(Icons.Filled.Check, contentDescription = null) }
+                    } else {
+                        null
+                    }
+                )
+            }
+            FilterChip(
+                selected = false,
+                onClick = onOther,
+                label = { Text(stringResource(R.string.reminder_other)) }
+            )
+        }
+        if (showRecurringNotice) {
+            Text(stringResource(R.string.reminder_recurring_notice), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun CustomReminderDialog(onConfirm: (Int) -> Unit, onDismiss: () -> Unit) {
+    var text by remember { mutableStateOf("") }
+    val minutes = text.toIntOrNull()
+    val isValid = minutes != null && isValidReminderMinutes(minutes)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.reminder_custom_dialog_title)) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { value -> text = value.filter(Char::isDigit).take(MAX_DIGITS_CUSTOM_REMINDER) },
+                label = { Text(stringResource(R.string.reminder_custom_field)) },
+                isError = text.isNotEmpty() && !isValid,
+                supportingText = if (text.isNotEmpty() && !isValid) {
+                    { Text(stringResource(R.string.reminder_custom_error, MAX_REMINDER_MINUTES_BEFORE)) }
+                } else {
+                    null
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { minutes?.let(onConfirm) }, enabled = isValid) {
+                Text(stringResource(R.string.action_add))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
+        }
+    )
+}
+
+// Alcanza para los 5 dígitos de 10080 y evita que `toIntOrNull` reciba un número gigante.
+private const val MAX_DIGITS_CUSTOM_REMINDER = 5
+
+@Composable
+private fun reminderLabel(minutesBefore: Int): String {
+    if (minutesBefore == 0) return stringResource(R.string.reminder_at_time)
+    val (value, unit) = reminderAmount(minutesBefore)
+    val plural = when (unit) {
+        ReminderUnit.MINUTES -> R.plurals.reminder_minutes_before
+        ReminderUnit.HOURS -> R.plurals.reminder_hours_before
+        ReminderUnit.DAYS -> R.plurals.reminder_days_before
+    }
+    return pluralStringResource(plural, value, value)
 }
 
 @Composable

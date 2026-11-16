@@ -102,4 +102,34 @@ class MigrationTest {
         assertThat(ocurrencias.isNull(ocurrencias.getColumnIndexOrThrow("overrideColorKey"))).isTrue()
         ocurrencias.close()
     }
+
+    @Test
+    fun migrarDe4a5_conservaLasTareasYCreaLaTablaDeRecordatorios() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            execSQL(
+                "INSERT INTO task (id, uuid, title, date, startMinutes, durationMinutes, " +
+                    "iconKey, colorKey, status, createdAt, updatedAt) VALUES " +
+                    "(1, 'uuid-1', 'Tarea vieja', 19000, 540, 30, 'task_default', 'blue', 0, 1, 1)"
+            )
+            close()
+        }
+
+        val migrada = helper.runMigrationsAndValidate(TEST_DB, 5, true, MIGRATION_4_5)
+
+        val tareas = migrada.query("SELECT * FROM task WHERE id = 1")
+        assertThat(tareas.moveToFirst()).isTrue()
+        assertThat(tareas.getString(tareas.getColumnIndexOrThrow("title"))).isEqualTo("Tarea vieja")
+        tareas.close()
+
+        // La tabla nueva arranca vacía y acepta filas con los valores por defecto del dominio.
+        migrada.execSQL(
+            "INSERT INTO reminder (id, uuid, ownerType, ownerId, minutesBefore, kind, status, " +
+                "createdAt, updatedAt) VALUES (1, 'uuid-rem-1', 'task', 1, 15, 'notice', 0, 1, 1)"
+        )
+        val recordatorios = migrada.query("SELECT * FROM reminder WHERE ownerType = 'task' AND ownerId = 1")
+        assertThat(recordatorios.moveToFirst()).isTrue()
+        assertThat(recordatorios.getInt(recordatorios.getColumnIndexOrThrow("minutesBefore"))).isEqualTo(15)
+        assertThat(recordatorios.isNull(recordatorios.getColumnIndexOrThrow("soundKey"))).isTrue()
+        recordatorios.close()
+    }
 }
