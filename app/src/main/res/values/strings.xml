@@ -126,6 +126,18 @@
     <string name="subtask_remove">Quitar subtarea</string>
     <string name="subtask_recurring_notice">En una tarea recurrente, las subtareas se aplican con «Todas» o «Esta y las siguientes». Con «Solo esta» no cambian.</string>
 
+    <!-- Tareas atrasadas (PL-14) -->
+    <plurals name="overdue_notice">
+        <item quantity="one">%d atrasada</item>
+        <item quantity="other">%d atrasadas</item>
+    </plurals>
+    <string name="overdue_sheet_title">Tareas atrasadas</string>
+    <string name="overdue_original_date">Era para el %1$s</string>
+    <string name="overdue_action_reschedule">Reprogramar</string>
+    <string name="overdue_action_to_inbox">A la bandeja</string>
+    <string name="a11y_overdue_reschedule">Reprogramar %1$s</string>
+    <string name="a11y_overdue_to_inbox">Llevar %1$s a la bandeja</string>
+
     <!-- Progreso del día y subtareas en Hoy (PL-05) -->
     <string name="day_progress_label">%1$d de %2$d completadas</string>
     <string name="a11y_day_progress">Progreso del día: %1$d de %2$d completadas</string>

@@ -20,8 +20,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -37,7 +35,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -63,6 +60,7 @@ import com.ignaciovinarro.stayfocused.planner.domain.EditScope
 import com.ignaciovinarro.stayfocused.planner.domain.MAX_REMINDER_MINUTES_BEFORE
 import com.ignaciovinarro.stayfocused.planner.domain.PRESET_REMINDER_MINUTES
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
+import com.ignaciovinarro.stayfocused.core.ui.AppDatePickerDialog
 import com.ignaciovinarro.stayfocused.core.ui.ReminderPermissionPrompt
 import com.ignaciovinarro.stayfocused.planner.domain.ReminderUnit
 import com.ignaciovinarro.stayfocused.planner.domain.SubtaskDraft
@@ -70,9 +68,7 @@ import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import com.ignaciovinarro.stayfocused.planner.domain.isValidReminderMinutes
 import com.ignaciovinarro.stayfocused.planner.domain.reminderAmount
 import java.time.DayOfWeek
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -223,23 +219,11 @@ fun CreateTaskScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.date.toEpochMillisUtc()
+        AppDatePickerDialog(
+            initialDate = uiState.date,
+            onConfirm = viewModel::onDateChange,
+            onDismiss = { showDatePicker = false }
         )
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        viewModel.onDateChange(millis.toLocalDateUtc())
-                    }
-                    showDatePicker = false
-                }) { Text(stringResource(R.string.action_done)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.action_cancel)) }
-            }
-        ) { DatePicker(state = datePickerState) }
     }
 
     if (showTimePicker) {
@@ -260,23 +244,11 @@ fun CreateTaskScreen(
     }
 
     if (showRecurrenceEndPicker) {
-        val recurrenceEndPickerState = rememberDatePickerState(
-            initialSelectedDateMillis = uiState.recurrenceEnd.toEpochMillisUtc()
+        AppDatePickerDialog(
+            initialDate = uiState.recurrenceEnd,
+            onConfirm = viewModel::onRecurrenceEndChange,
+            onDismiss = { showRecurrenceEndPicker = false }
         )
-        DatePickerDialog(
-            onDismissRequest = { showRecurrenceEndPicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    recurrenceEndPickerState.selectedDateMillis?.let { millis ->
-                        viewModel.onRecurrenceEndChange(millis.toLocalDateUtc())
-                    }
-                    showRecurrenceEndPicker = false
-                }) { Text(stringResource(R.string.action_done)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRecurrenceEndPicker = false }) { Text(stringResource(R.string.action_cancel)) }
-            }
-        ) { DatePicker(state = recurrenceEndPickerState) }
     }
 
     if (showCustomReminderDialog) {
@@ -320,10 +292,6 @@ fun CreateTaskScreen(
         )
     }
 }
-
-private fun LocalDate.toEpochMillisUtc(): Long = atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-
-private fun Long.toLocalDateUtc(): LocalDate = Instant.ofEpochMilli(this).atZone(ZoneOffset.UTC).toLocalDate()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

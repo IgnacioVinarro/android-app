@@ -33,6 +33,16 @@ class TaskRepositoryImplTest {
     }
 
     @Test
+    fun `observeOverdue delega en el DAO`() = runBlocking {
+        val tareas = listOf(tarea())
+        every { dao.observeOverdue(19000L) } returns flowOf(tareas)
+
+        val resultado = repository.observeOverdue(19000L)
+
+        assertEquals(tareas, resultado.first())
+    }
+
+    @Test
     fun `create delega el insert en el DAO`() = runBlocking {
         val tarea = tarea()
         coEvery { dao.insert(tarea) } returns 7L

@@ -3,6 +3,8 @@ package com.ignaciovinarro.stayfocused.planner.ui
 import app.cash.turbine.test
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineRepository
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
+import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
@@ -38,6 +40,7 @@ class TodayViewModelTest {
     private val taskRepository = mockk<TaskRepository>()
     private val taskOccurrenceRepository = mockk<TaskOccurrenceRepository>()
     private val subtaskRepository = mockk<SubtaskRepository>(relaxed = true)
+    private val reminderRepository = mockk<ReminderRepository>(relaxed = true)
     private val dispatcher = StandardTestDispatcher()
 
     @Before
@@ -47,10 +50,13 @@ class TodayViewModelTest {
         // Un Flow de un mock relajado no emite nunca: hay que dar uno que emita para que el combine avance.
         every { subtaskRepository.observeAll() } returns flowOf(emptyList())
         every { subtaskRepository.observeCompletions(any()) } returns flowOf(emptyList())
+        every { taskRepository.observeOverdue(any()) } returns flowOf(emptyList())
     }
 
     private fun crearViewModel() =
-        TodayViewModel(timelineRepository, taskRepository, taskOccurrenceRepository, subtaskRepository)
+        TodayViewModel(
+            timelineRepository, taskRepository, taskOccurrenceRepository, subtaskRepository, reminderRepository
+        )
 
     @After
     fun tearDown() {
@@ -523,5 +529,122 @@ class TodayViewModelTest {
         }
 
         coVerify(exactly = 0) { taskRepository.update(any()) }
+    }
+
+    // --- Tareas atrasadas (PL-14, ticket 0017) ---
+
+    private val hoyFecha = LocalDate.now()
+
+    private fun tareaAtrasada(id: Long = 1, startMinutes: Int? = 9 * 60) = TaskEntity(
+        id = id, title = "Atrasada", date = hoyFecha.minusDays(2).toEpochDay(), startMinutes = startMinutes,
+        durationMinutes = 30, iconKey = "task_default", colorKey = "blue"
+    )
+
+    @Test
+    fun `las tareas atrasadas del repositorio salen en el estado`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        every { taskRepository.observeOverdue(hoyFecha.toEpochDay()) } returns flowOf(listOf(tareaAtrasada()))
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            awaitItem() // estado inicial
+            assertEquals(listOf("Atrasada"), awaitItem().overdueTasks.map { it.title })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `reprogramar una atrasada cambia el dia y conserva la hora`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val atrasada = tareaAtrasada(startMinutes = 14 * 60)
+        coEvery { taskRepository.getById(1L) } returns atrasada
+        val actualizada = slot<TaskEntity>()
+        coEvery { taskRepository.update(capture(actualizada)) } returns Unit
+        val viewModel = crearViewModel()
+
+        viewModel.onRescheduleOverdue(atrasada, hoyFecha.plusDays(1))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(hoyFecha.plusDays(1).toEpochDay(), actualizada.captured.date)
+        assertEquals(14 * 60, actualizada.captured.startMinutes)
+    }
+
+    @Test
+    fun `reprogramar a una fecha pasada no cambia nada`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        coEvery { taskRepository.getById(1L) } returns tareaAtrasada()
+        val viewModel = crearViewModel()
+
+        viewModel.onRescheduleOverdue(tareaAtrasada(), hoyFecha.minusDays(1))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { taskRepository.update(any()) }
+    }
+
+    @Test
+    fun `reprogramar usa la tarea fresca de la base y no actua si ya no esta atrasada`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        // La pantalla tenia la tarea como atrasada, pero en la base ya se completo.
+        coEvery { taskRepository.getById(1L) } returns tareaAtrasada().copy(completedAt = 5L)
+        val viewModel = crearViewModel()
+
+        viewModel.onRescheduleOverdue(tareaAtrasada(), hoyFecha.plusDays(1))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { taskRepository.update(any()) }
+    }
+
+    @Test
+    fun `reprogramar una tarea que ya no existe no hace nada`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        coEvery { taskRepository.getById(1L) } returns null
+        val viewModel = crearViewModel()
+
+        viewModel.onRescheduleOverdue(tareaAtrasada(), hoyFecha.plusDays(1))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { taskRepository.update(any()) }
+    }
+
+    @Test
+    fun `llevar a la bandeja pone la fecha de hoy sin hora y borra los recordatorios`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        coEvery { taskRepository.getById(1L) } returns tareaAtrasada()
+        val actualizada = slot<TaskEntity>()
+        coEvery { taskRepository.update(capture(actualizada)) } returns Unit
+        val viewModel = crearViewModel()
+
+        viewModel.onMoveOverdueToInbox(tareaAtrasada())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(hoyFecha.toEpochDay(), actualizada.captured.date)
+        assertNull(actualizada.captured.startMinutes)
+        coVerify { reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, 1L) }
+    }
+
+    @Test
+    fun `llevar a la bandeja una tarea que ya no esta atrasada no toca nada`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        coEvery { taskRepository.getById(1L) } returns tareaAtrasada().copy(date = hoyFecha.toEpochDay())
+        val viewModel = crearViewModel()
+
+        viewModel.onMoveOverdueToInbox(tareaAtrasada())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { taskRepository.update(any()) }
+        coVerify(exactly = 0) { reminderRepository.deleteByOwner(any(), any()) }
+    }
+
+    @Test
+    fun `reprogramar no borra los recordatorios`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        coEvery { taskRepository.getById(1L) } returns tareaAtrasada()
+        coEvery { taskRepository.update(any()) } returns Unit
+        val viewModel = crearViewModel()
+
+        viewModel.onRescheduleOverdue(tareaAtrasada(), hoyFecha)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { reminderRepository.deleteByOwner(any(), any()) }
     }
 }

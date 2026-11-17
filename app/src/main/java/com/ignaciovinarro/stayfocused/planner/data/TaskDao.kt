@@ -21,6 +21,14 @@ interface TaskDao {
     @Query("SELECT * FROM task WHERE id = :id AND status = 0")
     suspend fun getById(id: Long): TaskEntity?
 
+    // Tareas atrasadas (PL-14): simples, no completadas y con fecha anterior a hoy, de la más vieja a
+    // la más nueva (con hora primero dentro del mismo día). Las recurrentes quedan fuera (ticket 0017).
+    @Query(
+        "SELECT * FROM task WHERE status = 0 AND recurrenceType IS NULL AND completedAt IS NULL " +
+            "AND date < :today ORDER BY date, startMinutes IS NULL, startMinutes"
+    )
+    fun observeOverdue(today: Long): Flow<List<TaskEntity>>
+
     // Solo las tareas con hora pueden tener recordatorios (ticket 0012).
     @Query("SELECT * FROM task WHERE status = 0 AND startMinutes IS NOT NULL")
     suspend fun getAllTimed(): List<TaskEntity>

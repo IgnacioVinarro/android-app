@@ -9,6 +9,8 @@ import com.ignaciovinarro.stayfocused.core.timeline.TimelineRepository
 import com.ignaciovinarro.stayfocused.core.timeline.clampDurationMinutes
 import com.ignaciovinarro.stayfocused.core.timeline.clampStartMinutes
 import com.ignaciovinarro.stayfocused.core.timeline.snapToGrid
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
+import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
@@ -18,6 +20,8 @@ import com.ignaciovinarro.stayfocused.planner.domain.DayProgress
 import com.ignaciovinarro.stayfocused.planner.domain.SubtaskItem
 import com.ignaciovinarro.stayfocused.planner.domain.TIMELINE_SOURCE_PLANNER
 import com.ignaciovinarro.stayfocused.planner.domain.dayProgress
+import com.ignaciovinarro.stayfocused.planner.domain.moveToInbox
+import com.ignaciovinarro.stayfocused.planner.domain.rescheduleOverdueTask
 import com.ignaciovinarro.stayfocused.planner.domain.subtaskItemsFor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
@@ -47,7 +51,9 @@ data class TodayUiState(
     // Subtareas de las tareas de la bandeja (clave = id de la tarea); las que no tienen no figuran.
     val inboxParts: Map<Long, PartsCount> = emptyMap(),
     val progress: DayProgress = DayProgress(done = 0, total = 0),
-    val subtaskSheet: SubtaskSheet? = null
+    val subtaskSheet: SubtaskSheet? = null,
+    // Tareas atrasadas (PL-14), de la más vieja a la más nueva; vacía = no se muestra el aviso.
+    val overdueTasks: List<TaskEntity> = emptyList()
 )
 
 // Qué tarea tiene abierta la hoja de subtareas. Se guarda aparte del contenido: el contenido sale de
@@ -61,25 +67,28 @@ class TodayViewModel @Inject constructor(
     private val timelineRepository: TimelineRepository,
     private val taskRepository: TaskRepository,
     private val taskOccurrenceRepository: TaskOccurrenceRepository,
-    private val subtaskRepository: SubtaskRepository
+    private val subtaskRepository: SubtaskRepository,
+    private val reminderRepository: ReminderRepository
 ) : ViewModel() {
 
     private val today = LocalDate.now()
     private val sheetTarget = MutableStateFlow<SheetTarget?>(null)
 
-    // Subtareas activas y tildes de hoy, juntos para no pasar de 5 flujos en el combine principal.
-    private val subtaskData = combine(
+    // Subtareas activas, tildes de hoy y tareas atrasadas, juntos para no pasar de 5 flujos en el
+    // combine principal.
+    private val daySupport = combine(
         subtaskRepository.observeAll(),
-        subtaskRepository.observeCompletions(today.toEpochDay())
-    ) { subtasks, completions -> subtasks to completions }
+        subtaskRepository.observeCompletions(today.toEpochDay()),
+        taskRepository.observeOverdue(today.toEpochDay())
+    ) { subtasks, completions, overdue -> Triple(subtasks, completions, overdue) }
 
     val uiState: StateFlow<TodayUiState> = combine(
         timelineRepository.blocksFor(today),
         nowTicker(),
         taskRepository.observeByDate(today.toEpochDay()),
-        subtaskData,
+        daySupport,
         sheetTarget
-    ) { blocks, nowMinutes, tasks, (subtasks, completions), target ->
+    ) { blocks, nowMinutes, tasks, (subtasks, completions, overdue), target ->
         val inbox = tasks.filter { it.startMinutes == null }
         val inboxItems = inbox.associate { task ->
             task.id to subtaskItemsFor(task.id, task.recurrenceType != null, today, subtasks, completions)
@@ -104,7 +113,8 @@ class TodayViewModel @Inject constructor(
             progress = progress,
             subtaskSheet = target?.let {
                 SubtaskSheet(it.title, subtaskItemsFor(it.taskId, it.recurring, today, subtasks, completions))
-            }
+            },
+            overdueTasks = overdue
         )
     }.stateIn(
         scope = viewModelScope,
@@ -172,6 +182,30 @@ class TodayViewModel @Inject constructor(
             } else {
                 subtaskRepository.setDone(item.id, !item.done)
             }
+        }
+    }
+
+    // Tareas atrasadas (PL-14, ticket 0017). Se vuelve a leer la tarea de la base antes de cambiarla:
+    // la que llega de la pantalla pudo quedar vieja, y las reglas puras vuelven a comprobar que siga
+    // atrasada. Las alarmas se reprograman solas cuando cambia la tabla (ReminderSyncer).
+
+    // "Reprogramar": cambia el día y conserva la hora y los recordatorios.
+    fun onRescheduleOverdue(task: TaskEntity, newDate: LocalDate) {
+        viewModelScope.launch {
+            val current = taskRepository.getById(task.id) ?: return@launch
+            val updated = rescheduleOverdueTask(current, newDate, today) ?: return@launch
+            taskRepository.update(updated)
+        }
+    }
+
+    // "A la bandeja": pasa a la bandeja de hoy, sin hora. Sin hora no hay recordatorios (ticket 0012),
+    // así que se borran también (las filas hijas no se borran solas, CLAUDE.md).
+    fun onMoveOverdueToInbox(task: TaskEntity) {
+        viewModelScope.launch {
+            val current = taskRepository.getById(task.id) ?: return@launch
+            val updated = moveToInbox(current, today) ?: return@launch
+            taskRepository.update(updated)
+            reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, current.id)
         }
     }
 

@@ -10,6 +10,16 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.ui.semantics.Role
 import com.ignaciovinarro.stayfocused.planner.domain.DayProgress
 import com.ignaciovinarro.stayfocused.planner.domain.SubtaskItem
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.pluralStringResource
+import com.ignaciovinarro.stayfocused.core.ui.AppDatePickerDialog
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
@@ -94,9 +104,22 @@ fun TodayScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var taskToSchedule by remember { mutableStateOf<TaskEntity?>(null) }
+    // Hoja de tareas atrasadas (PL-14) y la tarea para la que se está eligiendo nueva fecha.
+    var showOverdue by rememberSaveable { mutableStateOf(false) }
+    var overdueToReschedule by remember { mutableStateOf<TaskEntity?>(null) }
+
+    // Si la última atrasada sale de la lista (reprogramada o llevada a la bandeja), la hoja se cierra sola.
+    LaunchedEffect(uiState.overdueTasks.isEmpty()) {
+        if (uiState.overdueTasks.isEmpty()) showOverdue = false
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+            // Tareas atrasadas (PL-14): solo si hay.
+            if (uiState.overdueTasks.isNotEmpty()) {
+                OverdueNotice(count = uiState.overdueTasks.size, onClick = { showOverdue = true })
+            }
+
             // Progreso del día (PL-05): solo si hay algo que completar.
             if (uiState.progress.total > 0) {
                 DayProgressHeader(progress = uiState.progress)
@@ -161,6 +184,26 @@ fun TodayScreen(
         ) {
             Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.a11y_add_task))
         }
+    }
+
+    if (showOverdue && uiState.overdueTasks.isNotEmpty()) {
+        OverdueSheetContent(
+            tasks = uiState.overdueTasks,
+            onReschedule = { task -> overdueToReschedule = task },
+            onMoveToInbox = viewModel::onMoveOverdueToInbox,
+            onDismiss = { showOverdue = false }
+        )
+    }
+
+    overdueToReschedule?.let { task ->
+        // Solo hoy o días futuros: reprogramar una atrasada a otro día pasado no la saca de atrasada.
+        val today = LocalDate.now()
+        AppDatePickerDialog(
+            initialDate = today,
+            minDate = today,
+            onConfirm = { date -> viewModel.onRescheduleOverdue(task, date) },
+            onDismiss = { overdueToReschedule = null }
+        )
     }
 
     uiState.subtaskSheet?.let { sheet ->
@@ -413,6 +456,72 @@ private fun TimelineBlockCard(
                         .size(16.dp)
                         .clickable(onClick = onEditTask)
                 )
+            }
+        }
+    }
+}
+
+// Aviso "N atrasadas": ícono + texto (el estado no depende solo del color). El chip de Material 3 ya
+// respeta el área táctil mínima de 48 dp.
+@Composable
+private fun OverdueNotice(count: Int, onClick: () -> Unit) {
+    AssistChip(
+        onClick = onClick,
+        label = { Text(pluralStringResource(R.plurals.overdue_notice, count, count)) },
+        leadingIcon = { Icon(Icons.Filled.Warning, contentDescription = null) },
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+    )
+}
+
+// Hoja inferior con las tareas atrasadas (PL-14): una fila por tarea con su fecha original y dos
+// acciones, "Reprogramar" y "A la bandeja". Los botones llevan el título de la tarea en su descripción
+// para que con TalkBack se sepa a cuál pertenece cada uno.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OverdueSheetContent(
+    tasks: List<TaskEntity>,
+    onReschedule: (TaskEntity) -> Unit,
+    onMoveToInbox: (TaskEntity) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val dateFormat = remember { DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM) }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                stringResource(R.string.overdue_sheet_title),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            tasks.forEach { task ->
+                val rescheduleDescription = stringResource(R.string.a11y_overdue_reschedule, task.title)
+                val inboxDescription = stringResource(R.string.a11y_overdue_to_inbox, task.title)
+                Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Text(task.title, style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(
+                            R.string.overdue_original_date,
+                            LocalDate.ofEpochDay(task.date).format(dateFormat)
+                        ),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextButton(
+                            onClick = { onReschedule(task) },
+                            modifier = Modifier.semantics { contentDescription = rescheduleDescription }
+                        ) { Text(stringResource(R.string.overdue_action_reschedule)) }
+                        TextButton(
+                            onClick = { onMoveToInbox(task) },
+                            modifier = Modifier.semantics { contentDescription = inboxDescription }
+                        ) { Text(stringResource(R.string.overdue_action_to_inbox)) }
+                    }
+                }
+                HorizontalDivider()
             }
         }
     }

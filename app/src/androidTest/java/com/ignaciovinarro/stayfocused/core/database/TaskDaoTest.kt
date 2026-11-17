@@ -36,14 +36,18 @@ class TaskDaoTest {
     private fun tarea(
         title: String = "Tarea",
         date: Long = 19000L,
-        startMinutes: Int? = 9 * 60
+        startMinutes: Int? = 9 * 60,
+        completedAt: Long? = null,
+        recurrenceType: String? = null
     ) = TaskEntity(
         title = title,
         date = date,
         startMinutes = startMinutes,
         durationMinutes = 30,
         iconKey = "task_default",
-        colorKey = "blue"
+        colorKey = "blue",
+        completedAt = completedAt,
+        recurrenceType = recurrenceType
     )
 
     @Test
@@ -124,6 +128,52 @@ class TaskDaoTest {
             }
 
             assertThat(fallo).isTrue()
+        }
+    }
+
+    // --- Tareas atrasadas (PL-14, ticket 0017) ---
+
+    @Test
+    fun atrasadas_traeSoloLasSimplesNoCompletadasAnterioresAHoy() {
+        runBlocking {
+            dao.insert(tarea(title = "Atrasada", date = 18999L))
+            dao.insert(tarea(title = "Atrasada sin hora", date = 18998L, startMinutes = null))
+            dao.insert(tarea(title = "De hoy", date = 19000L))
+            dao.insert(tarea(title = "Futura", date = 19001L))
+            dao.insert(tarea(title = "Completada", date = 18999L, completedAt = 5L))
+            dao.insert(tarea(title = "Recurrente", date = 18999L, recurrenceType = "DAILY"))
+
+            val atrasadas = dao.observeOverdue(19000L).first()
+
+            assertThat(atrasadas.map { it.title }).containsExactly("Atrasada sin hora", "Atrasada").inOrder()
+        }
+    }
+
+    @Test
+    fun atrasadas_noTraeLasBorradasLogicamente() {
+        runBlocking {
+            val id = dao.insert(tarea(title = "Borrada", date = 18999L))
+            dao.insert(tarea(title = "Queda", date = 18999L))
+            dao.softDelete(id, updatedAt = 5L)
+
+            val atrasadas = dao.observeOverdue(19000L).first()
+
+            assertThat(atrasadas.map { it.title }).containsExactly("Queda")
+        }
+    }
+
+    @Test
+    fun atrasadas_ordenaPorFechaYLuegoPorHoraConLasSinHoraAlFinalDelDia() {
+        runBlocking {
+            dao.insert(tarea(title = "Ayer tarde", date = 18999L, startMinutes = 15 * 60))
+            dao.insert(tarea(title = "Ayer sin hora", date = 18999L, startMinutes = null))
+            dao.insert(tarea(title = "Ayer temprano", date = 18999L, startMinutes = 8 * 60))
+            dao.insert(tarea(title = "Anteayer", date = 18998L, startMinutes = 20 * 60))
+
+            val atrasadas = dao.observeOverdue(19000L).first()
+
+            assertThat(atrasadas.map { it.title })
+                .containsExactly("Anteayer", "Ayer temprano", "Ayer tarde", "Ayer sin hora").inOrder()
         }
     }
 }
