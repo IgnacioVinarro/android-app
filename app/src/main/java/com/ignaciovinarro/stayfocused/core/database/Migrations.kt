@@ -151,3 +151,31 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         )
     }
 }
+
+// Versión 7 (PL-05, parte 2): tabla `subtask_completion` con el tilde de cada subtarea por
+// ocurrencia (tareas recurrentes).
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `subtask_completion` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `uuid` TEXT NOT NULL,
+                `subtaskId` INTEGER NOT NULL,
+                `date` INTEGER NOT NULL,
+                `completedAt` INTEGER,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_subtask_completion_subtaskId_date` " +
+                "ON `subtask_completion` (`subtaskId`, `date`)"
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_subtask_completion_uuid` ON `subtask_completion` (`uuid`)"
+        )
+    }
+}

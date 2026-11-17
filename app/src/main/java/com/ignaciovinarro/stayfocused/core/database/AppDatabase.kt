@@ -7,6 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.ignaciovinarro.stayfocused.planner.data.ReminderDao
 import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionDao
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionEntity
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskDao
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.RoutineDao
@@ -33,9 +35,10 @@ private const val DATABASE_NAME = "stayfocused.db"
         RoutineEntity::class,
         RoutineItemEntity::class,
         ReminderEntity::class,
-        SubtaskEntity::class
+        SubtaskEntity::class,
+        SubtaskCompletionEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -46,6 +49,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun routineItemDao(): RoutineItemDao
     abstract fun reminderDao(): ReminderDao
     abstract fun subtaskDao(): SubtaskDao
+    abstract fun subtaskCompletionDao(): SubtaskCompletionDao
 }
 
 @Module
@@ -56,7 +60,7 @@ object DatabaseModule {
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
             .build()
 
     @Provides
@@ -76,4 +80,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSubtaskDao(database: AppDatabase): SubtaskDao = database.subtaskDao()
+
+    @Provides
+    fun provideSubtaskCompletionDao(database: AppDatabase): SubtaskCompletionDao = database.subtaskCompletionDao()
 }

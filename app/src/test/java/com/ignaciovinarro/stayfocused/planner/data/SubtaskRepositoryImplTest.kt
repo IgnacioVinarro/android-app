@@ -3,21 +3,27 @@ package com.ignaciovinarro.stayfocused.planner.data
 import com.ignaciovinarro.stayfocused.planner.domain.SubtaskDraft
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
 class SubtaskRepositoryImplTest {
 
     private val dao = mockk<SubtaskDao>(relaxed = true)
+    private val completionDao = mockk<SubtaskCompletionDao>(relaxed = true)
     private lateinit var repository: SubtaskRepository
 
     @Before
     fun setUp() {
-        repository = SubtaskRepositoryImpl(dao)
+        repository = SubtaskRepositoryImpl(dao, completionDao)
     }
 
     private fun existente(id: Long, title: String, position: Int, done: Boolean = false) =
@@ -101,5 +107,75 @@ class SubtaskRepositoryImplTest {
         repository.deleteByTask(5L)
 
         coVerify { dao.softDeleteByTask(5L, any()) }
+    }
+
+    @Test
+    fun `setDone guarda el tilde en la propia subtarea`() = runBlocking {
+        repository.setDone(7L, true)
+
+        coVerify { dao.updateDone(7L, true, any()) }
+        coVerify(exactly = 0) { completionDao.insert(any()) }
+    }
+
+    @Test
+    fun `setDoneOn crea la fila del dia si no existia`() = runBlocking {
+        coEvery { completionDao.getBySubtaskAndDate(7L, 19000L) } returns null
+        val insertada = slot<SubtaskCompletionEntity>()
+        coEvery { completionDao.insert(capture(insertada)) } returns 1L
+
+        repository.setDoneOn(7L, 19000L, true)
+
+        assertEquals(7L, insertada.captured.subtaskId)
+        assertEquals(19000L, insertada.captured.date)
+        assertNotNull(insertada.captured.completedAt)
+    }
+
+    @Test
+    fun `setDoneOn destildar algo que nunca se tildo no crea fila`() = runBlocking {
+        coEvery { completionDao.getBySubtaskAndDate(7L, 19000L) } returns null
+
+        repository.setDoneOn(7L, 19000L, false)
+
+        coVerify(exactly = 0) { completionDao.insert(any()) }
+        coVerify(exactly = 0) { completionDao.update(any()) }
+    }
+
+    @Test
+    fun `setDoneOn destildar pone completedAt en nulo sin borrar la fila`() = runBlocking {
+        val tildada = SubtaskCompletionEntity(id = 3L, subtaskId = 7L, date = 19000L, completedAt = 123L)
+        coEvery { completionDao.getBySubtaskAndDate(7L, 19000L) } returns tildada
+        val actualizada = slot<SubtaskCompletionEntity>()
+        coEvery { completionDao.update(capture(actualizada)) } returns Unit
+
+        repository.setDoneOn(7L, 19000L, false)
+
+        assertNull(actualizada.captured.completedAt)
+        assertEquals(3L, actualizada.captured.id)
+        coVerify(exactly = 0) { completionDao.insert(any()) }
+    }
+
+    @Test
+    fun `setDoneOn volver a tildar reutiliza la fila existente`() = runBlocking {
+        val destildada = SubtaskCompletionEntity(id = 3L, subtaskId = 7L, date = 19000L, completedAt = null)
+        coEvery { completionDao.getBySubtaskAndDate(7L, 19000L) } returns destildada
+        val actualizada = slot<SubtaskCompletionEntity>()
+        coEvery { completionDao.update(capture(actualizada)) } returns Unit
+
+        repository.setDoneOn(7L, 19000L, true)
+
+        assertNotNull(actualizada.captured.completedAt)
+        assertEquals(3L, actualizada.captured.id)
+        coVerify(exactly = 0) { completionDao.insert(any()) }
+    }
+
+    @Test
+    fun `observeAll y observeCompletions delegan en los DAO`() = runBlocking {
+        val subtareas = listOf(existente(1L, "A", 0))
+        val tildes = listOf(SubtaskCompletionEntity(subtaskId = 1L, date = 19000L, completedAt = 5L))
+        every { dao.observeAll() } returns flowOf(subtareas)
+        every { completionDao.observeByDate(19000L) } returns flowOf(tildes)
+
+        assertEquals(subtareas, repository.observeAll().first())
+        assertEquals(tildes, repository.observeCompletions(19000L).first())
     }
 }

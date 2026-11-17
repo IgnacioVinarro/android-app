@@ -1,6 +1,9 @@
 package com.ignaciovinarro.stayfocused.planner.domain
 
 import app.cash.turbine.test
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionEntity
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskEntity
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
@@ -19,7 +22,8 @@ class TaskTimelineSourceTest {
 
     private val taskRepository = mockk<TaskRepository>()
     private val taskOccurrenceRepository = mockk<TaskOccurrenceRepository>()
-    private val source = TaskTimelineSource(taskRepository, taskOccurrenceRepository)
+    private val subtaskRepository = mockk<SubtaskRepository>()
+    private val source = TaskTimelineSource(taskRepository, taskOccurrenceRepository, subtaskRepository)
     private val fecha = LocalDate.of(2026, 3, 5) // jueves
 
     private fun tarea(
@@ -43,7 +47,14 @@ class TaskTimelineSourceTest {
         recurrenceInterval = recurrenceInterval
     )
 
-    private fun stub(tasks: List<TaskEntity>, occurrences: List<TaskOccurrenceEntity> = emptyList()) {
+    private fun stub(
+        tasks: List<TaskEntity>,
+        occurrences: List<TaskOccurrenceEntity> = emptyList(),
+        subtasks: List<SubtaskEntity> = emptyList(),
+        completions: List<SubtaskCompletionEntity> = emptyList()
+    ) {
+        every { subtaskRepository.observeAll() } returns flowOf(subtasks)
+        every { subtaskRepository.observeCompletions(fecha.toEpochDay()) } returns flowOf(completions)
         every { taskRepository.observeByDate(fecha.toEpochDay()) } returns flowOf(tasks)
         every {
             taskOccurrenceRepository.observeByDateRange(fecha.toEpochDay(), fecha.toEpochDay())
@@ -219,6 +230,66 @@ class TaskTimelineSourceTest {
             assertEquals("Tomar mucha agua", bloque.title)
             assertEquals("task_health", bloque.iconKey)
             assertEquals("red", bloque.colorKey)
+            awaitComplete()
+        }
+    }
+
+    // --- Subtareas (PL-05): partsDone / partsTotal del bloque ---
+
+    @Test
+    fun `un bloque sin subtareas tiene cero partes`() = runTest {
+        stub(listOf(tarea(id = 1, title = "Sola", startMinutes = 9 * 60)))
+
+        source.blocksFor(fecha).test {
+            val bloque = awaitItem().single()
+            assertEquals(0, bloque.partsTotal)
+            assertEquals(0, bloque.partsDone)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `tarea simple cuenta las subtareas hechas segun su done`() = runTest {
+        stub(
+            tasks = listOf(tarea(id = 1, title = "Compras", startMinutes = 9 * 60)),
+            subtasks = listOf(
+                SubtaskEntity(id = 1, taskId = 1, title = "Pan", done = true, position = 0),
+                SubtaskEntity(id = 2, taskId = 1, title = "Leche", done = false, position = 1),
+                SubtaskEntity(id = 3, taskId = 2, title = "De otra tarea", done = true, position = 0)
+            )
+        )
+
+        source.blocksFor(fecha).test {
+            val bloque = awaitItem().single()
+            assertEquals(2, bloque.partsTotal)
+            assertEquals(1, bloque.partsDone)
+            awaitComplete()
+        }
+    }
+
+    @Test
+    fun `tarea recurrente cuenta las hechas segun los tildes de ese dia`() = runTest {
+        stub(
+            tasks = listOf(
+                tarea(
+                    id = 1, title = "Rutina", startMinutes = 9 * 60, date = fecha.minusDays(3),
+                    recurrenceType = RecurrenceType.DAILY.name
+                )
+            ),
+            subtasks = listOf(
+                // done = true se ignora en recurrentes: manda el tilde del dia.
+                SubtaskEntity(id = 1, taskId = 1, title = "Uno", done = true, position = 0),
+                SubtaskEntity(id = 2, taskId = 1, title = "Dos", done = false, position = 1)
+            ),
+            completions = listOf(
+                SubtaskCompletionEntity(subtaskId = 2, date = fecha.toEpochDay(), completedAt = 10L)
+            )
+        )
+
+        source.blocksFor(fecha).test {
+            val bloque = awaitItem().single()
+            assertEquals(2, bloque.partsTotal)
+            assertEquals(1, bloque.partsDone)
             awaitComplete()
         }
     }

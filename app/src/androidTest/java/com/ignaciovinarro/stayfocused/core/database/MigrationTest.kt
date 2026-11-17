@@ -162,4 +162,38 @@ class MigrationTest {
         assertThat(subtareas.getInt(subtareas.getColumnIndexOrThrow("done"))).isEqualTo(0)
         subtareas.close()
     }
+
+    @Test
+    fun migrarDe6a7_conservaLasSubtareasYCreaLaTablaDeTildes() {
+        helper.createDatabase(TEST_DB, 6).apply {
+            execSQL(
+                "INSERT INTO task (id, uuid, title, date, startMinutes, durationMinutes, " +
+                    "iconKey, colorKey, status, createdAt, updatedAt) VALUES " +
+                    "(1, 'uuid-1', 'Tarea vieja', 19000, 540, 30, 'task_default', 'blue', 0, 1, 1)"
+            )
+            execSQL(
+                "INSERT INTO subtask (id, uuid, taskId, title, done, position, status, createdAt, updatedAt) " +
+                    "VALUES (1, 'uuid-sub-1', 1, 'Comprar pan', 1, 0, 0, 1, 1)"
+            )
+            close()
+        }
+
+        val migrada = helper.runMigrationsAndValidate(TEST_DB, 7, true, MIGRATION_6_7)
+
+        val subtareas = migrada.query("SELECT * FROM subtask WHERE id = 1")
+        assertThat(subtareas.moveToFirst()).isTrue()
+        assertThat(subtareas.getString(subtareas.getColumnIndexOrThrow("title"))).isEqualTo("Comprar pan")
+        assertThat(subtareas.getInt(subtareas.getColumnIndexOrThrow("done"))).isEqualTo(1)
+        subtareas.close()
+
+        // La tabla nueva arranca vacía y acepta filas; completedAt puede ser nulo (tilde destildado).
+        migrada.execSQL(
+            "INSERT INTO subtask_completion (id, uuid, subtaskId, date, completedAt, status, createdAt, updatedAt) " +
+                "VALUES (1, 'uuid-comp-1', 1, 19000, NULL, 0, 1, 1)"
+        )
+        val tildes = migrada.query("SELECT * FROM subtask_completion WHERE subtaskId = 1")
+        assertThat(tildes.moveToFirst()).isTrue()
+        assertThat(tildes.isNull(tildes.getColumnIndexOrThrow("completedAt"))).isTrue()
+        tildes.close()
+    }
 }

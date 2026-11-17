@@ -126,6 +126,13 @@
     <string name="subtask_remove">Quitar subtarea</string>
     <string name="subtask_recurring_notice">En una tarea recurrente, las subtareas se aplican con «Todas» o «Esta y las siguientes». Con «Solo esta» no cambian.</string>
 
+    <!-- Progreso del día y subtareas en Hoy (PL-05) -->
+    <string name="day_progress_label">%1$d de %2$d completadas</string>
+    <string name="a11y_day_progress">Progreso del día: %1$d de %2$d completadas</string>
+    <string name="subtasks_chip">%1$d/%2$d</string>
+    <string name="a11y_subtasks_chip">Subtareas: %1$d de %2$d completadas. Tocá para ver la lista</string>
+    <string name="subtasks_sheet_empty">Esta tarea no tiene subtareas.</string>
+
     <!-- Alarma sonora (PL-11) -->
     <string name="reminder_alarm_sound">Sonar como alarma</string>
     <string name="reminder_alarm_sound_hint">Suena con el tono de alarma del teléfono y muestra una pantalla completa.</string>

@@ -14,6 +14,10 @@ data class TimelineBlock(
     val colorKey: String,
     val completed: Boolean,
     val movable: Boolean = true, // si se puede mover/redimensionar arrastrando (PL-07)
+    // Partes del bloque (ej. subtareas): cuántas están hechas y cuántas hay. partsTotal = 0 = el bloque
+    // no tiene partes. El núcleo solo muestra "X/Y"; no sabe qué son (PL-05).
+    val partsDone: Int = 0,
+    val partsTotal: Int = 0,
     val route: String // pantalla que se abre al tocar el bloque
 )
 

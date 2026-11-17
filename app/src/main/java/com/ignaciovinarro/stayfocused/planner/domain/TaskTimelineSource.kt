@@ -2,6 +2,7 @@ package com.ignaciovinarro.stayfocused.planner.domain
 
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineSource
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
@@ -27,22 +28,27 @@ abstract class TaskTimelineModule {
 
 class TaskTimelineSource @Inject constructor(
     private val taskRepository: TaskRepository,
-    private val taskOccurrenceRepository: TaskOccurrenceRepository
+    private val taskOccurrenceRepository: TaskOccurrenceRepository,
+    private val subtaskRepository: SubtaskRepository
 ) : TimelineSource {
 
     // Las tareas sin hora van a la bandeja (Inbox): no entran a la línea de tiempo. Las tareas
     // recurrentes solo aparecen el día que les toca según `occursOn`; si esa ocurrencia puntual
     // tiene fila en `task_occurrence`, la hora y si está completada salen de ahí (y si está
     // saltada, no se muestra); si no tiene fila, salen de la tarea.
+    // Cada bloque lleva además cuántas subtareas tiene y cuántas están tildadas ese día (PL-05).
     override fun blocksFor(date: LocalDate): Flow<List<TimelineBlock>> {
         val epochDay = date.toEpochDay()
         return combine(
             taskRepository.observeByDate(epochDay),
-            taskOccurrenceRepository.observeByDateRange(epochDay, epochDay)
-        ) { tasks, occurrences ->
+            taskOccurrenceRepository.observeByDateRange(epochDay, epochDay),
+            subtaskRepository.observeAll(),
+            subtaskRepository.observeCompletions(epochDay)
+        ) { tasks, occurrences, subtasks, completions ->
             val occurrenceByTaskId = occurrences.associateBy { it.taskId }
             tasks.mapNotNull { task ->
                 val startMinutes = task.startMinutes ?: return@mapNotNull null
+                val items = subtaskItemsFor(task.id, task.recurrenceType != null, date, subtasks, completions)
 
                 if (task.recurrenceType == null) {
                     return@mapNotNull task.toTimelineBlock(
@@ -53,7 +59,8 @@ class TaskTimelineSource @Inject constructor(
                         iconKey = task.iconKey,
                         colorKey = task.colorKey,
                         completed = task.completedAt != null,
-                        movable = true
+                        movable = true,
+                        items = items
                     )
                 }
 
@@ -69,7 +76,8 @@ class TaskTimelineSource @Inject constructor(
                     iconKey = occurrence?.overrideIconKey ?: task.iconKey,
                     colorKey = occurrence?.overrideColorKey ?: task.colorKey,
                     completed = occurrence?.completedAt != null,
-                    movable = false // mover una ocurrencia puntual sin tocar la regla es un paso aparte
+                    movable = false, // mover una ocurrencia puntual sin tocar la regla es un paso aparte
+                    items = items
                 )
             }
         }
@@ -84,7 +92,8 @@ private fun TaskEntity.toTimelineBlock(
     iconKey: String,
     colorKey: String,
     completed: Boolean,
-    movable: Boolean
+    movable: Boolean,
+    items: List<SubtaskItem>
 ) = TimelineBlock(
     id = uuid,
     source = TIMELINE_SOURCE_PLANNER,
@@ -96,5 +105,7 @@ private fun TaskEntity.toTimelineBlock(
     colorKey = colorKey,
     completed = completed,
     movable = movable,
+    partsDone = items.count { it.done },
+    partsTotal = items.size,
     route = "planner/task/$id"
 )

@@ -1,5 +1,15 @@
 package com.ignaciovinarro.stayfocused.planner.ui
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.semantics.Role
+import com.ignaciovinarro.stayfocused.planner.domain.DayProgress
+import com.ignaciovinarro.stayfocused.planner.domain.SubtaskItem
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.horizontalScroll
@@ -87,10 +97,17 @@ fun TodayScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+            // Progreso del día (PL-05): solo si hay algo que completar.
+            if (uiState.progress.total > 0) {
+                DayProgressHeader(progress = uiState.progress)
+            }
+
             if (uiState.inboxTasks.isNotEmpty()) {
                 InboxSection(
                     tasks = uiState.inboxTasks,
-                    onTaskClick = { task -> taskToSchedule = task }
+                    partsByTask = uiState.inboxParts,
+                    onTaskClick = { task -> taskToSchedule = task },
+                    onOpenSubtasks = viewModel::onOpenSubtasks
                 )
             }
 
@@ -116,6 +133,7 @@ fun TodayScreen(
                             blocks = uiState.positionedBlocks,
                             availableWidth = availableWidth,
                             onToggleComplete = viewModel::onToggleComplete,
+                            onOpenSubtasks = viewModel::onOpenSubtasks,
                             onMoveTask = viewModel::onMoveTask,
                             onResizeTask = viewModel::onResizeTask,
                             onEditTask = onEditTask
@@ -145,6 +163,14 @@ fun TodayScreen(
         }
     }
 
+    uiState.subtaskSheet?.let { sheet ->
+        SubtaskSheetContent(
+            sheet = sheet,
+            onToggle = viewModel::onToggleSubtask,
+            onDismiss = viewModel::onDismissSubtasks
+        )
+    }
+
     taskToSchedule?.let { task ->
         val now = LocalTime.now()
         val timePickerState = rememberTimePickerState(
@@ -163,7 +189,12 @@ fun TodayScreen(
 }
 
 @Composable
-private fun InboxSection(tasks: List<TaskEntity>, onTaskClick: (TaskEntity) -> Unit) {
+private fun InboxSection(
+    tasks: List<TaskEntity>,
+    partsByTask: Map<Long, PartsCount>,
+    onTaskClick: (TaskEntity) -> Unit,
+    onOpenSubtasks: (TaskEntity) -> Unit
+) {
     Column(Modifier.fillMaxWidth().padding(8.dp)) {
         Text(stringResource(R.string.inbox_title), style = MaterialTheme.typography.labelLarge)
         Row(
@@ -188,6 +219,9 @@ private fun InboxSection(tasks: List<TaskEntity>, onTaskClick: (TaskEntity) -> U
                         Icon(iconForKey(task.iconKey), contentDescription = null, tint = Color.White)
                         Spacer(Modifier.width(4.dp))
                         Text(task.title, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                        partsByTask[task.id]?.let { parts ->
+                            PartsChip(parts.done, parts.total, onClick = { onOpenSubtasks(task) })
+                        }
                     }
                 }
             }
@@ -226,6 +260,7 @@ private fun PositionedBlocks(
     blocks: List<PositionedTimelineBlock>,
     availableWidth: Dp,
     onToggleComplete: (TimelineBlock) -> Unit,
+    onOpenSubtasks: (TimelineBlock) -> Unit,
     onMoveTask: (TimelineBlock, Int) -> Unit,
     onResizeTask: (TimelineBlock, Int) -> Unit,
     onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit
@@ -260,6 +295,9 @@ private fun PositionedBlocks(
                 iconKey = block.iconKey,
                 colorKey = block.colorKey,
                 completed = block.completed,
+                partsDone = block.partsDone,
+                partsTotal = block.partsTotal,
+                onOpenSubtasks = { onOpenSubtasks(block) },
                 onToggleComplete = { onToggleComplete(block) },
                 onEditTask = if (block.source == TIMELINE_SOURCE_PLANNER) {
                     {
@@ -322,17 +360,22 @@ private fun TimelineBlockCard(
     iconKey: String,
     colorKey: String,
     completed: Boolean,
+    partsDone: Int,
+    partsTotal: Int,
+    onOpenSubtasks: () -> Unit,
     onToggleComplete: () -> Unit,
     onEditTask: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     val color = colorForKey(colorKey)
+    // Al completar/descompletar el bloque cambia de opacidad con una transición corta en vez de a golpe.
+    val alpha by animateFloatAsState(targetValue = if (completed) 0.4f else 0.9f, label = "blockAlpha")
 
     Surface(
         modifier = modifier
             .padding(1.dp)
             .clickable(onClick = onToggleComplete),
-        color = color.copy(alpha = if (completed) 0.4f else 0.9f),
+        color = color.copy(alpha = alpha),
         shape = MaterialTheme.shapes.small
     ) {
         Row(
@@ -354,6 +397,9 @@ private fun TimelineBlockCard(
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.weight(1f, fill = false)
             )
+            if (partsTotal > 0) {
+                PartsChip(partsDone, partsTotal, onClick = onOpenSubtasks)
+            }
             // Ícono chico para editar/borrar (PL-15): el bloque puede ser angosto, así que el área
             // táctil acá es más chica que los 48 dp recomendados, mismo criterio pragmático que
             // el asa de redimensionar (RESIZE_HANDLE_HEIGHT).
@@ -367,6 +413,99 @@ private fun TimelineBlockCard(
                         .size(16.dp)
                         .clickable(onClick = onEditTask)
                 )
+            }
+        }
+    }
+}
+
+// Chip "X/Y" de subtareas, compartido por los bloques y la bandeja (una sola implementación). Lleva
+// texto además de color. El área táctil es chica porque el bloque es angosto: mismo criterio
+// pragmático que el ícono de editar (ticket 0016); la hoja que abre sí tiene filas de 48 dp.
+@Composable
+private fun PartsChip(done: Int, total: Int, onClick: () -> Unit) {
+    val description = stringResource(R.string.a11y_subtasks_chip, done, total)
+    Text(
+        text = stringResource(R.string.subtasks_chip, done, total),
+        color = Color.White,
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier
+            .padding(start = 4.dp)
+            .background(Color.Black.copy(alpha = 0.25f), MaterialTheme.shapes.extraSmall)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+            .semantics { contentDescription = description }
+    )
+}
+
+// Encabezado de Hoy: "X de Y completadas" + barra animada. El texto va siempre: el estado no depende
+// solo del color de la barra.
+@Composable
+private fun DayProgressHeader(progress: DayProgress) {
+    val animated by animateFloatAsState(targetValue = progress.fraction, label = "dayProgress")
+    val description = stringResource(R.string.a11y_day_progress, progress.done, progress.total)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .semantics(mergeDescendants = true) { contentDescription = description }
+    ) {
+        Text(
+            stringResource(R.string.day_progress_label, progress.done, progress.total),
+            style = MaterialTheme.typography.labelLarge
+        )
+        LinearProgressIndicator(
+            progress = { animated },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp)
+        )
+    }
+}
+
+// Hoja inferior con las subtareas de una tarea: una fila de al menos 48 dp por subtarea, toda la fila
+// es tocable (no solo la casilla). El tilde cambia en la base y la lista se redibuja sola.
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SubtaskSheetContent(
+    sheet: SubtaskSheet,
+    onToggle: (SubtaskItem) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                sheet.title,
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            if (sheet.items.isEmpty()) {
+                Text(stringResource(R.string.subtasks_sheet_empty))
+            }
+            sheet.items.forEach { item ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .toggleable(
+                            value = item.done,
+                            role = Role.Checkbox,
+                            onValueChange = { onToggle(item) }
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // La fila entera maneja el toque (toggleable); la casilla solo dibuja el estado.
+                    Checkbox(checked = item.done, onCheckedChange = null)
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        item.title,
+                        textDecoration = if (item.done) TextDecoration.LineThrough else null
+                    )
+                }
             }
         }
     }
