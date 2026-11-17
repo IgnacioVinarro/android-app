@@ -132,4 +132,34 @@ class MigrationTest {
         assertThat(recordatorios.isNull(recordatorios.getColumnIndexOrThrow("soundKey"))).isTrue()
         recordatorios.close()
     }
+
+    @Test
+    fun migrarDe5a6_conservaLasTareasYCreaLaTablaDeSubtareas() {
+        helper.createDatabase(TEST_DB, 5).apply {
+            execSQL(
+                "INSERT INTO task (id, uuid, title, date, startMinutes, durationMinutes, " +
+                    "iconKey, colorKey, status, createdAt, updatedAt) VALUES " +
+                    "(1, 'uuid-1', 'Tarea vieja', 19000, 540, 30, 'task_default', 'blue', 0, 1, 1)"
+            )
+            close()
+        }
+
+        val migrada = helper.runMigrationsAndValidate(TEST_DB, 6, true, MIGRATION_5_6)
+
+        val tareas = migrada.query("SELECT * FROM task WHERE id = 1")
+        assertThat(tareas.moveToFirst()).isTrue()
+        assertThat(tareas.getString(tareas.getColumnIndexOrThrow("title"))).isEqualTo("Tarea vieja")
+        tareas.close()
+
+        // La tabla nueva arranca vacía y acepta filas con los valores por defecto del dominio.
+        migrada.execSQL(
+            "INSERT INTO subtask (id, uuid, taskId, title, done, position, status, createdAt, updatedAt) " +
+                "VALUES (1, 'uuid-sub-1', 1, 'Comprar pan', 0, 0, 0, 1, 1)"
+        )
+        val subtareas = migrada.query("SELECT * FROM subtask WHERE taskId = 1")
+        assertThat(subtareas.moveToFirst()).isTrue()
+        assertThat(subtareas.getString(subtareas.getColumnIndexOrThrow("title"))).isEqualTo("Comprar pan")
+        assertThat(subtareas.getInt(subtareas.getColumnIndexOrThrow("done"))).isEqualTo(0)
+        subtareas.close()
+    }
 }

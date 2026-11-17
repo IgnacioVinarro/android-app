@@ -124,3 +124,30 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+// Versión 6 (PL-04 / PL-05, parte 1): tabla `subtask` con las subtareas de una tarea.
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `subtask` (
+                `id` INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                `uuid` TEXT NOT NULL,
+                `taskId` INTEGER NOT NULL,
+                `title` TEXT NOT NULL,
+                `done` INTEGER NOT NULL,
+                `position` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_subtask_uuid` ON `subtask` (`uuid`)"
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_subtask_taskId` ON `subtask` (`taskId`)"
+        )
+    }
+}

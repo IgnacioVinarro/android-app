@@ -7,12 +7,15 @@ import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_NOTICE
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
 import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
 import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskEntity
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
 import com.ignaciovinarro.stayfocused.planner.domain.EditScope
 import com.ignaciovinarro.stayfocused.planner.domain.MAX_REMINDER_MINUTES_BEFORE
+import com.ignaciovinarro.stayfocused.planner.domain.SubtaskDraft
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import io.mockk.coEvery
@@ -42,6 +45,7 @@ class CreateTaskViewModelTest {
     private val taskRepository = mockk<TaskRepository>()
     private val taskOccurrenceRepository = mockk<TaskOccurrenceRepository>()
     private val reminderRepository = mockk<ReminderRepository>(relaxed = true)
+    private val subtaskRepository = mockk<SubtaskRepository>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>()
     private val dispatcher = StandardTestDispatcher()
 
@@ -50,6 +54,7 @@ class CreateTaskViewModelTest {
         Dispatchers.setMain(dispatcher)
         every { settingsRepository.defaultTaskDuration } returns flowOf(45)
         coEvery { reminderRepository.getByOwner(any(), any()) } returns emptyList()
+        coEvery { subtaskRepository.getByTask(any()) } returns emptyList()
     }
 
     @After
@@ -63,6 +68,7 @@ class CreateTaskViewModelTest {
             taskRepository,
             taskOccurrenceRepository,
             reminderRepository,
+            subtaskRepository,
             settingsRepository
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -75,6 +81,7 @@ class CreateTaskViewModelTest {
             taskRepository,
             taskOccurrenceRepository,
             reminderRepository,
+            subtaskRepository,
             settingsRepository
         )
         dispatcher.scheduler.advanceUntilIdle()
@@ -809,4 +816,254 @@ class CreateTaskViewModelTest {
 
             coVerify { reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, 20L) }
         }
+
+    // --- Subtareas (PL-04, ticket 0015) ---
+
+    private fun titulos(drafts: List<SubtaskDraft>) = drafts.map { it.title }
+
+    @Test
+    fun `agregar subtareas suma filas vacias con claves distintas`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+
+        viewModel.onSubtaskAdd()
+        viewModel.onSubtaskAdd()
+
+        val subtareas = viewModel.uiState.value.subtasks
+        assertEquals(2, subtareas.size)
+        assertTrue(subtareas.all { it.title.isEmpty() && it.id == null })
+        assertEquals(2, subtareas.map { it.key }.toSet().size)
+    }
+
+    @Test
+    fun `editar el titulo de una subtarea solo cambia esa fila`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        viewModel.onSubtaskAdd()
+        viewModel.onSubtaskAdd()
+        val (primera, segunda) = viewModel.uiState.value.subtasks
+
+        viewModel.onSubtaskTitleChange(segunda.key, "Segunda")
+
+        assertEquals(listOf("", "Segunda"), titulos(viewModel.uiState.value.subtasks))
+        assertEquals(primera.key, viewModel.uiState.value.subtasks[0].key)
+    }
+
+    @Test
+    fun `quitar una subtarea la saca de la lista y conserva el orden de las demas`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        repeat(3) { viewModel.onSubtaskAdd() }
+        val filas = viewModel.uiState.value.subtasks
+        filas.forEachIndexed { i, fila -> viewModel.onSubtaskTitleChange(fila.key, "S$i") }
+
+        viewModel.onSubtaskRemove(filas[1].key)
+
+        assertEquals(listOf("S0", "S2"), titulos(viewModel.uiState.value.subtasks))
+    }
+
+    @Test
+    fun `crear una tarea guarda las subtareas recortadas y sin vacias para el id nuevo`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        coEvery { taskRepository.create(any()) } returns 7L
+
+        viewModel.onTitleChange("Compras")
+        repeat(3) { viewModel.onSubtaskAdd() }
+        val filas = viewModel.uiState.value.subtasks
+        viewModel.onSubtaskTitleChange(filas[0].key, "  Pan  ")
+        viewModel.onSubtaskTitleChange(filas[2].key, "Leche")
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { subtaskRepository.replaceForTask(7L, match { titulos(it) == listOf("Pan", "Leche") }) }
+    }
+
+    @Test
+    fun `una tarea sin hora igual guarda sus subtareas`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        coEvery { taskRepository.create(any()) } returns 7L
+
+        viewModel.onTitleChange("Ideas")
+        viewModel.onHasStartTimeChange(false)
+        viewModel.onSubtaskAdd()
+        viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[0].key, "Anotar")
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { subtaskRepository.replaceForTask(7L, match { titulos(it) == listOf("Anotar") }) }
+    }
+
+    @Test
+    fun `cargar una tarea existente precarga sus subtareas con su id`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { subtaskRepository.getByTask(10L) } returns listOf(
+            SubtaskEntity(id = 4L, taskId = 10L, title = "Primera", position = 0),
+            SubtaskEntity(id = 5L, taskId = 10L, title = "Segunda", position = 1)
+        )
+
+        val viewModel = crearViewModelEditando(10L)
+
+        val subtareas = viewModel.uiState.value.subtasks
+        assertEquals(listOf("Primera", "Segunda"), titulos(subtareas))
+        assertEquals(listOf<Long?>(4L, 5L), subtareas.map { it.id })
+        assertEquals(2, subtareas.map { it.key }.toSet().size)
+    }
+
+    @Test
+    fun `editar una tarea simple reemplaza sus subtareas conservando el id de las que ya estaban`() =
+        runTest(dispatcher) {
+            coEvery { taskRepository.getById(10L) } returns tareaSimple
+            coEvery { taskRepository.update(any()) } returns Unit
+            coEvery { subtaskRepository.getByTask(10L) } returns listOf(
+                SubtaskEntity(id = 4L, taskId = 10L, title = "Vieja", position = 0)
+            )
+            val viewModel = crearViewModelEditando(10L)
+
+            viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[0].key, "Vieja editada")
+            viewModel.onSubtaskAdd()
+            viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[1].key, "Nueva")
+            viewModel.save {}
+            dispatcher.scheduler.advanceUntilIdle()
+
+            coVerify {
+                subtaskRepository.replaceForTask(
+                    10L,
+                    match { titulos(it) == listOf("Vieja editada", "Nueva") && it.map { d -> d.id } == listOf(4L, null) }
+                )
+            }
+        }
+
+    @Test
+    fun `editar una recurrente con todas reemplaza las subtareas de la tarea`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskRepository.update(any()) } returns Unit
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onSubtaskAdd()
+        viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[0].key, "Paso")
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { subtaskRepository.replaceForTask(20L, match { titulos(it) == listOf("Paso") }) }
+    }
+
+    @Test
+    fun `editar una recurrente con solo esta no toca las subtareas`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskOccurrenceRepository.create(any()) } returns 1L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.onSubtaskAdd()
+        viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[0].key, "Paso")
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ONLY_THIS)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { subtaskRepository.replaceForTask(any(), any()) }
+    }
+
+    @Test
+    fun `esta y siguientes deja las subtareas en la original y las editadas como filas nuevas en la otra`() =
+        runTest(dispatcher) {
+            val fecha = LocalDate.of(2026, 1, 19)
+            coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+            coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+            coEvery { taskRepository.update(any()) } returns Unit
+            coEvery { taskRepository.create(any()) } returns 99L
+            coEvery { subtaskRepository.getByTask(20L) } returns listOf(
+                SubtaskEntity(id = 4L, taskId = 20L, title = "Heredada", position = 0)
+            )
+            val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+            viewModel.onSubtaskAdd()
+            viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[1].key, "Agregada")
+            viewModel.save {}
+            dispatcher.scheduler.advanceUntilIdle()
+            viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            // En la tarea nueva se insertan todas como filas propias: sin los id de la original.
+            coVerify {
+                subtaskRepository.replaceForTask(
+                    99L,
+                    match { titulos(it) == listOf("Heredada", "Agregada") && it.all { d -> d.id == null } }
+                )
+            }
+            coVerify(exactly = 0) { subtaskRepository.replaceForTask(20L, any()) }
+        }
+
+    @Test
+    fun `esta y siguientes desde la primera ocurrencia reemplaza las subtareas en la original`() =
+        runTest(dispatcher) {
+            val primera = LocalDate.ofEpochDay(tareaRecurrente.date)
+            coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+            coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, primera.toEpochDay()) } returns null
+            coEvery { taskRepository.update(any()) } returns Unit
+            coEvery { subtaskRepository.getByTask(20L) } returns listOf(
+                SubtaskEntity(id = 4L, taskId = 20L, title = "Paso", position = 0)
+            )
+            val viewModel = crearViewModelEditando(20L, primera.toEpochDay())
+
+            viewModel.onSubtaskTitleChange(viewModel.uiState.value.subtasks[0].key, "Paso editado")
+            viewModel.save {}
+            dispatcher.scheduler.advanceUntilIdle()
+            viewModel.onScopeChosen(EditScope.THIS_AND_FOLLOWING)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            coVerify {
+                subtaskRepository.replaceForTask(
+                    20L,
+                    match { titulos(it) == listOf("Paso editado") && it.single().id == 4L }
+                )
+            }
+            coVerify(exactly = 0) { taskRepository.create(any()) }
+        }
+
+    @Test
+    fun `borrar una tarea simple borra tambien sus subtareas`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { taskRepository.delete(10L) } returns Unit
+        val viewModel = crearViewModelEditando(10L)
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { subtaskRepository.deleteByTask(10L) }
+    }
+
+    @Test
+    fun `borrar una recurrente con solo esta no borra las subtareas`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskOccurrenceRepository.create(any()) } returns 1L
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ONLY_THIS)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { subtaskRepository.deleteByTask(any()) }
+    }
+
+    @Test
+    fun `borrar una recurrente con todas borra tambien sus subtareas`() = runTest(dispatcher) {
+        val fecha = LocalDate.of(2026, 1, 19)
+        coEvery { taskRepository.getById(20L) } returns tareaRecurrente
+        coEvery { taskOccurrenceRepository.getByTaskAndDate(20L, fecha.toEpochDay()) } returns null
+        coEvery { taskRepository.delete(20L) } returns Unit
+        val viewModel = crearViewModelEditando(20L, fecha.toEpochDay())
+
+        viewModel.delete {}
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.onScopeChosen(EditScope.ALL)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { subtaskRepository.deleteByTask(20L) }
+    }
 }

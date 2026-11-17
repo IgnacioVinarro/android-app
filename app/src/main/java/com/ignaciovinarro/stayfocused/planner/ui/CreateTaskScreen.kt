@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
@@ -44,6 +45,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.pluralStringResource
@@ -61,6 +65,7 @@ import com.ignaciovinarro.stayfocused.planner.domain.PRESET_REMINDER_MINUTES
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.core.ui.ReminderPermissionPrompt
 import com.ignaciovinarro.stayfocused.planner.domain.ReminderUnit
+import com.ignaciovinarro.stayfocused.planner.domain.SubtaskDraft
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import com.ignaciovinarro.stayfocused.planner.domain.isValidReminderMinutes
 import com.ignaciovinarro.stayfocused.planner.domain.reminderAmount
@@ -196,6 +201,15 @@ fun CreateTaskScreen(
                 onValueChange = viewModel::onNotesChange,
                 label = { Text(stringResource(R.string.create_task_field_notes)) },
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            // Subtareas (PL-04): valen con o sin hora.
+            SubtaskSection(
+                subtasks = uiState.subtasks,
+                showRecurringNotice = isEditingRecurring,
+                onAdd = viewModel::onSubtaskAdd,
+                onTitleChange = viewModel::onSubtaskTitleChange,
+                onRemove = viewModel::onSubtaskRemove
             )
 
             Button(
@@ -436,6 +450,46 @@ private fun ReminderSection(
         }
         if (showRecurringNotice) {
             Text(stringResource(R.string.reminder_recurring_notice), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+// Una fila por subtarea (campo de texto + botón de borrar) y un botón para agregar otra. No se
+// puede reordenar arrastrando todavía (ticket 0015).
+@Composable
+private fun SubtaskSection(
+    subtasks: List<SubtaskDraft>,
+    showRecurringNotice: Boolean,
+    onAdd: () -> Unit,
+    onTitleChange: (Long, String) -> Unit,
+    onRemove: (Long) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.subtasks_section_title), style = MaterialTheme.typography.labelLarge)
+        subtasks.forEach { subtask ->
+            // La clave estable evita que el campo pierda el foco o el texto al borrar otra fila.
+            key(subtask.key) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    OutlinedTextField(
+                        value = subtask.title,
+                        onValueChange = { onTitleChange(subtask.key, it) },
+                        label = { Text(stringResource(R.string.subtask_field_title)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { onRemove(subtask.key) }) {
+                        Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.subtask_remove))
+                    }
+                }
+            }
+        }
+        OutlinedButton(onClick = onAdd) {
+            Icon(Icons.Filled.Add, contentDescription = null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.subtask_add))
+        }
+        if (showRecurringNotice) {
+            Text(stringResource(R.string.subtask_recurring_notice), style = MaterialTheme.typography.bodySmall)
         }
     }
 }

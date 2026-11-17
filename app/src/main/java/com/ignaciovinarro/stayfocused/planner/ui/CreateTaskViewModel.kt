@@ -10,6 +10,7 @@ import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_ALARM
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_NOTICE
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
 import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
@@ -20,7 +21,9 @@ import com.ignaciovinarro.stayfocused.planner.domain.TaskEditFields
 import com.ignaciovinarro.stayfocused.planner.domain.applyEditFromDate
 import com.ignaciovinarro.stayfocused.planner.domain.applyEditToAll
 import com.ignaciovinarro.stayfocused.planner.domain.isValidReminderMinutes
+import com.ignaciovinarro.stayfocused.planner.domain.SubtaskDraft
 import com.ignaciovinarro.stayfocused.planner.domain.normalizeReminderMinutes
+import com.ignaciovinarro.stayfocused.planner.domain.normalizeSubtasks
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import com.ignaciovinarro.stayfocused.planner.domain.truncateRecurrenceFromDate
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -71,7 +74,9 @@ data class CreateTaskUiState(
     // aplican con hora asignada; si se activa "sin hora" no se guarda ninguno (ticket 0012).
     val reminderMinutes: List<Int> = emptyList(),
     // PL-11: un interruptor por tarea; true = todos sus avisos suenan como alarma (kind = "alarm").
-    val alarmSound: Boolean = false
+    val alarmSound: Boolean = false,
+    // Subtareas (PL-04): en el orden de la lista. Valen con o sin hora; las vacías se descartan al guardar.
+    val subtasks: List<SubtaskDraft> = emptyList()
 ) {
     val isValid: Boolean
         get() = title.isNotBlank() && durationMinutes > 0 && (!recurrenceEnabled || isRecurrenceValid)
@@ -90,8 +95,13 @@ class CreateTaskViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val taskOccurrenceRepository: TaskOccurrenceRepository,
     private val reminderRepository: ReminderRepository,
+    private val subtaskRepository: SubtaskRepository,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
+
+    // Las filas de la lista de subtareas necesitan una clave estable mientras se edita; una subtarea
+    // nueva todavía no tiene `id` en la base, así que la clave sale de este contador.
+    private var nextSubtaskKey = 1L
 
     private val existingTaskId: Long = savedStateHandle.get<Long>(ARG_TASK_ID)?.takeIf { it != 0L } ?: 0L
     private val occurrenceEpochDay: Long? =
@@ -131,6 +141,8 @@ class CreateTaskViewModel @Inject constructor(
                 val storedReminders = reminderRepository.getByOwner(REMINDER_OWNER_TASK, task.id)
                 val reminders = storedReminders.map { it.minutesBefore }
                 val alarmSound = storedReminders.any { it.kind == REMINDER_KIND_ALARM }
+                val subtasks = subtaskRepository.getByTask(task.id)
+                    .map { SubtaskDraft(key = nextSubtaskKey++, title = it.title, id = it.id) }
 
                 _uiState.update {
                     it.copy(
@@ -152,7 +164,8 @@ class CreateTaskViewModel @Inject constructor(
                         hasRecurrenceEnd = task.recurrenceEnd != null,
                         recurrenceEnd = task.recurrenceEnd?.let(LocalDate::ofEpochDay) ?: it.recurrenceEnd,
                         reminderMinutes = normalizeReminderMinutes(reminders),
-                        alarmSound = alarmSound
+                        alarmSound = alarmSound,
+                        subtasks = subtasks
                     )
                 }
             }
@@ -189,6 +202,19 @@ class CreateTaskViewModel @Inject constructor(
 
     fun onAlarmSoundChange(value: Boolean) = _uiState.update { it.copy(alarmSound = value) }
 
+    // Subtareas (PL-04): se agrega una fila vacía al final; las vacías se descartan al guardar.
+    fun onSubtaskAdd() = _uiState.update {
+        it.copy(subtasks = it.subtasks + SubtaskDraft(key = nextSubtaskKey++, title = ""))
+    }
+
+    fun onSubtaskTitleChange(key: Long, title: String) = _uiState.update { state ->
+        state.copy(subtasks = state.subtasks.map { if (it.key == key) it.copy(title = title) else it })
+    }
+
+    fun onSubtaskRemove(key: Long) = _uiState.update { state ->
+        state.copy(subtasks = state.subtasks.filterNot { it.key == key })
+    }
+
     // Prende o apaga un recordatorio de la lista (PL-10). Ignora valores fuera de rango.
     fun onReminderToggle(minutesBefore: Int) = _uiState.update {
         if (!isValidReminderMinutes(minutesBefore)) return@update it
@@ -209,14 +235,14 @@ class CreateTaskViewModel @Inject constructor(
         viewModelScope.launch {
             if (existingTaskId == 0L) {
                 val newId = taskRepository.create(buildTaskFromState(newTaskSeed(), state))
-                saveReminders(newId, state)
+                saveChildren(newId, state)
                 onSaved()
                 return@launch
             }
             val task = loadedTask ?: return@launch
             if (task.recurrenceType == null) {
                 taskRepository.update(buildTaskFromState(task, state))
-                saveReminders(task.id, state)
+                saveChildren(task.id, state)
                 onSaved()
                 return@launch
             }
@@ -229,7 +255,7 @@ class CreateTaskViewModel @Inject constructor(
         val task = loadedTask ?: return
         if (task.recurrenceType == null) {
             viewModelScope.launch {
-                deleteTaskAndReminders(task.id)
+                deleteTaskWithChildren(task.id)
                 onDeleted()
             }
             return
@@ -266,18 +292,18 @@ class CreateTaskViewModel @Inject constructor(
         when (scope) {
             EditScope.ALL -> {
                 taskRepository.update(applyEditToAll(task, edit))
-                saveReminders(task.id, state)
+                saveChildren(task.id, state)
             }
-            // Los recordatorios son de la tarea, no de la ocurrencia: "solo esta" no los toca.
+            // Los recordatorios y las subtareas son de la tarea, no de la ocurrencia: "solo esta" no los toca.
             EditScope.ONLY_THIS -> upsertOccurrenceOverride(task, date, edit)
             EditScope.THIS_AND_FOLLOWING -> {
                 val (truncada, nueva) = applyEditFromDate(task, edit, date)
                 taskRepository.update(truncada)
                 if (nueva != null) {
-                    // La original conserva sus recordatorios; la nueva se lleva los editados.
-                    saveReminders(taskRepository.create(nueva), state)
+                    // La original conserva sus recordatorios y subtareas; la nueva se lleva los editados.
+                    saveChildren(taskRepository.create(nueva), state, asNewTask = true)
                 } else {
-                    saveReminders(task.id, state) // primera ocurrencia: equivale a "todas"
+                    saveChildren(task.id, state) // primera ocurrencia: equivale a "todas"
                 }
             }
         }
@@ -288,12 +314,12 @@ class CreateTaskViewModel @Inject constructor(
         val date = effectiveDate(task)
 
         when (scope) {
-            EditScope.ALL -> deleteTaskAndReminders(task.id)
+            EditScope.ALL -> deleteTaskWithChildren(task.id)
             EditScope.ONLY_THIS -> upsertOccurrenceSkip(task, date)
             EditScope.THIS_AND_FOLLOWING -> {
                 val startDate = LocalDate.ofEpochDay(task.date)
                 if (!date.isAfter(startDate)) {
-                    deleteTaskAndReminders(task.id) // primera ocurrencia: equivale a borrar todas
+                    deleteTaskWithChildren(task.id) // primera ocurrencia: equivale a borrar todas
                 } else {
                     taskRepository.update(truncateRecurrenceFromDate(task, date))
                 }
@@ -329,10 +355,28 @@ class CreateTaskViewModel @Inject constructor(
         reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, taskId, minutes, kind)
     }
 
-    // Las filas hijas no se borran solas (CLAUDE.md): al borrar la tarea se borran sus recordatorios.
-    private suspend fun deleteTaskAndReminders(taskId: Long) {
+    // Subtareas (PL-04): valen con o sin hora. Si la tarea es nueva por una división "esta y
+    // siguientes", los `id` de la lista son los de la tarea original, así que se descartan: las
+    // subtareas de la tarea nueva se insertan como filas propias y la original conserva las suyas.
+    private suspend fun saveSubtasks(taskId: Long, state: CreateTaskUiState, asNewTask: Boolean) {
+        val drafts = normalizeSubtasks(state.subtasks).let { list ->
+            if (asNewTask) list.map { it.copy(id = null) } else list
+        }
+        subtaskRepository.replaceForTask(taskId, drafts)
+    }
+
+    // Lo que cuelga de la tarea y se guarda junto con ella: recordatorios y subtareas.
+    private suspend fun saveChildren(taskId: Long, state: CreateTaskUiState, asNewTask: Boolean = false) {
+        saveReminders(taskId, state)
+        saveSubtasks(taskId, state, asNewTask)
+    }
+
+    // Las filas hijas no se borran solas (CLAUDE.md): al borrar la tarea se borran sus recordatorios
+    // y sus subtareas.
+    private suspend fun deleteTaskWithChildren(taskId: Long) {
         taskRepository.delete(taskId)
         reminderRepository.deleteByOwner(REMINDER_OWNER_TASK, taskId)
+        subtaskRepository.deleteByTask(taskId)
     }
 
     private fun effectiveDate(task: TaskEntity): LocalDate = LocalDate.ofEpochDay(occurrenceEpochDay ?: task.date)

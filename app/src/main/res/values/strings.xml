@@ -119,6 +119,13 @@
     <string name="a11y_nav_nutrition">Pestaña Dieta, diario del día</string>
     <string name="a11y_nav_meditation">Pestaña Meditación, temporizador y racha</string>
 
+    <!-- Subtareas (PL-04) -->
+    <string name="subtasks_section_title">Subtareas</string>
+    <string name="subtask_field_title">Subtarea</string>
+    <string name="subtask_add">Agregar subtarea</string>
+    <string name="subtask_remove">Quitar subtarea</string>
+    <string name="subtask_recurring_notice">En una tarea recurrente, las subtareas se aplican con «Todas» o «Esta y las siguientes». Con «Solo esta» no cambian.</string>
+
     <!-- Alarma sonora (PL-11) -->
     <string name="reminder_alarm_sound">Sonar como alarma</string>
     <string name="reminder_alarm_sound_hint">Suena con el tono de alarma del teléfono y muestra una pantalla completa.</string>
