@@ -59,6 +59,7 @@ import com.ignaciovinarro.stayfocused.planner.domain.EditScope
 import com.ignaciovinarro.stayfocused.planner.domain.MAX_REMINDER_MINUTES_BEFORE
 import com.ignaciovinarro.stayfocused.planner.domain.PRESET_REMINDER_MINUTES
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
+import com.ignaciovinarro.stayfocused.core.ui.ReminderPermissionPrompt
 import com.ignaciovinarro.stayfocused.planner.domain.ReminderUnit
 import com.ignaciovinarro.stayfocused.planner.domain.dayOfWeekBit
 import com.ignaciovinarro.stayfocused.planner.domain.isValidReminderMinutes
@@ -178,6 +179,8 @@ fun CreateTaskScreen(
                     onToggle = viewModel::onReminderToggle,
                     onOther = { showCustomReminderDialog = true }
                 )
+                // Se pide el permiso recién cuando hay un recordatorio elegido, con su explicación.
+                if (uiState.reminderMinutes.isNotEmpty()) ReminderPermissionPrompt()
             }
 
             Text(stringResource(R.string.create_task_field_icon), style = MaterialTheme.typography.labelLarge)

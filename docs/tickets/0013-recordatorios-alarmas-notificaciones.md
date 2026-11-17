@@ -1,7 +1,7 @@
 # Ticket 0013 – Recordatorios por tarea: programar, avisar y reprogramar (PL-10, parte 2)
 
 ## Estado
-En progreso
+En revisión
 
 ## Descripción
 Segunda mitad de PL-10. Se apoya en la tabla `reminder` y el formulario del ticket 0012. Acá los
@@ -53,14 +53,38 @@ Reglas de CLAUDE.md que aplican:
 - [x] `ReminderReceiver`: muestra la notificación y programa el siguiente disparo
 - [x] Notificación con acciones "Completar" y "Posponer"
 - [x] Canal de notificación de tareas (se crea al iniciar la app)
-- [ ] Pedido de permisos en contexto (notificaciones y alarma exacta), con explicación y guía a Ajustes
+- [x] Pedido de permisos en contexto (notificaciones y alarma exacta), con explicación y guía a
+      Ajustes: `ReminderPermissions` (core/notifications, función pura `missingReminderPermission` +
+      pruebas) y `ReminderPermissionPrompt` (core/ui, reutilizable); se muestra en el formulario de
+      tarea solo cuando hay un recordatorio elegido
 - [x] `BootReceiver` + `RescheduleWorker`: reinicio, cambio de hora/zona, actualización de la app
 - [x] Reprogramar al crear/editar/completar/borrar tarea y al abrir la app: `ReminderSyncer`
       (`planner/data`) observa las tablas `task`, `task_occurrence` y `reminder` y llama a
       `rescheduleAll` (con debounce de 500 ms); se arranca en `StayFocusedApplication` + pruebas
 - [x] Cambios de manifiesto (`ReminderReceiver`; `BootReceiver` ya estaba)
 - [x] Compilación (`assembleDebug`), `./gradlew test` y `./gradlew lint` en verde con lo hecho hasta acá
-- [ ] Lista de comprobación manual en el teléfono (reposo, reinicio, cambio de zona, permiso denegado)
+- [ ] Lista de comprobación manual en el teléfono (abajo) — **pendiente, la tenés que hacer vos**
+
+## Lista de comprobación manual (teléfono real)
+1. **Permisos:** instalar la app de cero. Crear una tarea con hora y elegir un recordatorio: aparece
+   el aviso rojo de notificaciones. "Permitir notificaciones" abre el diálogo del sistema. Aceptar:
+   el aviso desaparece. Repetir rechazando dos veces: el botón pasa a "Abrir ajustes".
+2. **Alarma exacta (Android 12 y 12L):** si pide el permiso de alarmas, "Abrir ajustes" lleva a la
+   pantalla correcta y al volver el aviso desaparece.
+3. **Aviso a la hora:** tarea simple para dentro de 3 min con recordatorio "a la hora"; bloquear el
+   teléfono y esperar sin tocarlo. Debe sonar la notificación a la hora, con "Completar" y "Posponer".
+4. **Antes de:** tarea con "5 min antes" y otra con minutos libres (p. ej. 7): suenan a la hora
+   correcta.
+5. **Varios recordatorios** en una misma tarea: suenan todos.
+6. **Posponer:** vuelve a sonar a los 10 min y no pisa el siguiente aviso.
+7. **Completar:** desde la notificación; la tarea queda tildada en la línea de tiempo.
+8. **Recurrente:** tarea diaria con recordatorio; completar hoy y comprobar que mañana vuelve a avisar.
+   "Solo esta" saltada: ese día no avisa.
+9. **Editar / borrar:** cambiar la hora de la tarea (el aviso nuevo sale a la hora nueva, no a la
+   vieja); borrarla (no sale ningún aviso).
+10. **Reinicio:** programar un aviso, reiniciar el teléfono, comprobar que sigue sonando.
+11. **Cambio de hora/zona horaria:** mover el reloj del teléfono y comprobar que el aviso se corre.
+12. **Notificaciones apagadas** a mano en Ajustes: la app no falla y el aviso del formulario aparece.
 
 ## Notas
 - El servidor de lenguaje de Kotlin de VS Code (extensión `fwcd.kotlin`) deja trabado

@@ -119,6 +119,12 @@
     <string name="a11y_nav_nutrition">Pestaña Dieta, diario del día</string>
     <string name="a11y_nav_meditation">Pestaña Meditación, temporizador y racha</string>
 
+    <!-- Permisos de los recordatorios -->
+    <string name="reminder_permission_notifications_message">Para avisarte necesito permiso para mostrar notificaciones. Sin él, los recordatorios no se ven.</string>
+    <string name="reminder_permission_alarm_message">Para que el aviso suene a la hora exacta, Android necesita que permitas las alarmas y recordatorios para esta app. Sin eso, los recordatorios no suenan.</string>
+    <string name="reminder_permission_notifications_button">Permitir notificaciones</string>
+    <string name="reminder_permission_settings_button">Abrir ajustes</string>
+
     <!-- Notificaciones de recordatorios -->
     <string name="notification_channel_tasks">Tareas</string>
     <string name="notification_channel_tasks_description">Avisos de las tareas con recordatorio</string>
