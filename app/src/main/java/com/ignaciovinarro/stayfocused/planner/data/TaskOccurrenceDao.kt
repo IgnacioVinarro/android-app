@@ -21,6 +21,9 @@ interface TaskOccurrenceDao {
     @Query("SELECT * FROM task_occurrence WHERE taskId = :taskId AND date = :date AND status = 0")
     suspend fun getByTaskAndDate(taskId: Long, date: Long): TaskOccurrenceEntity?
 
+    @Query("SELECT * FROM task_occurrence WHERE taskId = :taskId AND status = 0")
+    suspend fun getByTask(taskId: Long): List<TaskOccurrenceEntity>
+
     @Query("SELECT * FROM task_occurrence WHERE status = 0 AND date BETWEEN :startDate AND :endDate")
     fun observeByDateRange(startDate: Long, endDate: Long): Flow<List<TaskOccurrenceEntity>>
 }

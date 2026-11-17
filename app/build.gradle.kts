@@ -92,6 +92,9 @@ dependencies {
     // DataStore
     implementation(libs.datastore.preferences)
 
+    // WorkManager (reprogramar recordatorios)
+    implementation(libs.work.runtime)
+
     // Coroutines
     implementation(libs.coroutines.android)
     implementation(libs.coroutines.core)

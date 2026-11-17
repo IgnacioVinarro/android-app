@@ -118,4 +118,11 @@
     <string name="a11y_nav_gym">Pestaña Gimnasio, rutinas y sesiones</string>
     <string name="a11y_nav_nutrition">Pestaña Dieta, diario del día</string>
     <string name="a11y_nav_meditation">Pestaña Meditación, temporizador y racha</string>
+
+    <!-- Notificaciones de recordatorios -->
+    <string name="notification_channel_tasks">Tareas</string>
+    <string name="notification_channel_tasks_description">Avisos de las tareas con recordatorio</string>
+    <string name="notification_task_starts_at">Empieza a las %1$s</string>
+    <string name="notification_action_complete">Completar</string>
+    <string name="notification_action_snooze">Posponer</string>
 </resources>

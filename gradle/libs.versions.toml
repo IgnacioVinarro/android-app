@@ -31,6 +31,9 @@ hiltNavigationCompose = "1.2.0"
 # DataStore
 datastore = "1.1.1"
 
+# WorkManager
+workManager = "2.12.0"
+
 # Coroutines
 coroutines = "1.10.1"
 
@@ -78,6 +81,9 @@ hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-com
 
 # DataStore
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+
+# WorkManager (desde 2.9 las APIs de corrutinas están en work-runtime; work-runtime-ktx quedó vacío)
+work-runtime = { group = "androidx.work", name = "work-runtime", version.ref = "workManager" }
 
 # Coroutines
 coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }

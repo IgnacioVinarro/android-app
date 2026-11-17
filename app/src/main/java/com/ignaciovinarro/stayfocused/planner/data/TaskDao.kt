@@ -21,6 +21,10 @@ interface TaskDao {
     @Query("SELECT * FROM task WHERE id = :id AND status = 0")
     suspend fun getById(id: Long): TaskEntity?
 
+    // Solo las tareas con hora pueden tener recordatorios (ticket 0012).
+    @Query("SELECT * FROM task WHERE status = 0 AND startMinutes IS NOT NULL")
+    suspend fun getAllTimed(): List<TaskEntity>
+
     // Para una fecha, trae las tareas simples de ese día y, además, todas las tareas recurrentes
     // cuyo inicio ya pasó (pueden tener ocurrencia ese día; `occursOn` decide cuáles exactamente).
     @Query(

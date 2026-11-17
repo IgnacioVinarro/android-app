@@ -21,6 +21,7 @@ object TaskOccurrenceModule {
 interface TaskOccurrenceRepository {
     fun observeByDateRange(startDate: Long, endDate: Long): Flow<List<TaskOccurrenceEntity>>
     suspend fun getByTaskAndDate(taskId: Long, date: Long): TaskOccurrenceEntity?
+    suspend fun getByTask(taskId: Long): List<TaskOccurrenceEntity>
     suspend fun create(occurrence: TaskOccurrenceEntity): Long
     suspend fun update(occurrence: TaskOccurrenceEntity)
     suspend fun delete(id: Long)
@@ -35,6 +36,9 @@ class TaskOccurrenceRepositoryImpl(
 
     override suspend fun getByTaskAndDate(taskId: Long, date: Long): TaskOccurrenceEntity? =
         taskOccurrenceDao.getByTaskAndDate(taskId, date)
+
+    override suspend fun getByTask(taskId: Long): List<TaskOccurrenceEntity> =
+        taskOccurrenceDao.getByTask(taskId)
 
     override suspend fun create(occurrence: TaskOccurrenceEntity): Long = taskOccurrenceDao.insert(occurrence)
 

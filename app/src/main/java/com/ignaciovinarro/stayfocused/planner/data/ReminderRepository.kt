@@ -18,6 +18,7 @@ object ReminderModule {
 
 interface ReminderRepository {
     suspend fun getByOwner(ownerType: String, ownerId: Long): List<ReminderEntity>
+    suspend fun getById(id: Long): ReminderEntity?
 
     // Deja al dueño con exactamente este conjunto de `minutesBefore`: borra lógicamente los que
     // sobran, inserta los que faltan y no toca los que ya estaban (conservan su `uuid`).
@@ -32,6 +33,8 @@ class ReminderRepositoryImpl(
 
     override suspend fun getByOwner(ownerType: String, ownerId: Long): List<ReminderEntity> =
         reminderDao.getByOwner(ownerType, ownerId)
+
+    override suspend fun getById(id: Long): ReminderEntity? = reminderDao.getById(id)
 
     override suspend fun replaceForOwner(ownerType: String, ownerId: Long, minutesBefore: Collection<Int>) {
         val wanted = minutesBefore.toSet()

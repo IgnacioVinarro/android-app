@@ -20,6 +20,7 @@ interface TaskRepository {
     fun observeByDate(date: Long): Flow<List<TaskEntity>>
     fun observeByDateRange(startDate: Long, endDate: Long): Flow<List<TaskEntity>>
     suspend fun getById(id: Long): TaskEntity?
+    suspend fun getAllTimed(): List<TaskEntity>
     suspend fun create(task: TaskEntity): Long
     suspend fun update(task: TaskEntity)
     suspend fun delete(id: Long)
@@ -35,6 +36,8 @@ class TaskRepositoryImpl(
         taskDao.observeByDateRange(startDate, endDate)
 
     override suspend fun getById(id: Long): TaskEntity? = taskDao.getById(id)
+
+    override suspend fun getAllTimed(): List<TaskEntity> = taskDao.getAllTimed()
 
     override suspend fun create(task: TaskEntity): Long = taskDao.insert(task)
 

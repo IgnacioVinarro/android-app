@@ -67,6 +67,12 @@
             </intent-filter>
         </receiver>
 
+        <!-- Recibe la alarma de un recordatorio y los botones Completar/Posponer de su notificación.
+             No se exporta: solo la propia app (AlarmManager y la notificación) lo invoca. -->
+        <receiver
+            android:name=".planner.data.ReminderReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>
