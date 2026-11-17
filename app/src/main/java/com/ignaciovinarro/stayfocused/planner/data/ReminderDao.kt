@@ -19,6 +19,9 @@ interface ReminderDao {
     @Query("SELECT * FROM reminder WHERE id = :id AND status = 0")
     suspend fun getById(id: Long): ReminderEntity?
 
+    @Query("UPDATE reminder SET kind = :kind, updatedAt = :updatedAt WHERE id = :id AND status = 0")
+    suspend fun updateKind(id: Long, kind: String, updatedAt: Long)
+
     @Query("UPDATE reminder SET status = -1, updatedAt = :updatedAt WHERE id = :id AND status = 0")
     suspend fun softDelete(id: Long, updatedAt: Long)
 

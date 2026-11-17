@@ -2,6 +2,8 @@ package com.ignaciovinarro.stayfocused.planner.ui
 
 import androidx.lifecycle.SavedStateHandle
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_ALARM
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_NOTICE
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
 import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
 import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
@@ -593,6 +595,62 @@ class CreateTaskViewModelTest {
         val viewModel = crearViewModelEditando(10L)
 
         assertEquals(listOf(0, 30), viewModel.uiState.value.reminderMinutes)
+    }
+
+    @Test
+    fun `por defecto la tarea suena como notificacion y no como alarma`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        coEvery { taskRepository.create(any()) } returns 7L
+
+        viewModel.onTitleChange("Reunion")
+        viewModel.onReminderToggle(15)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(false, viewModel.uiState.value.alarmSound)
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 7L, listOf(15), REMINDER_KIND_NOTICE) }
+    }
+
+    @Test
+    fun `con el interruptor de alarma activo guarda los recordatorios como alarma`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+        coEvery { taskRepository.create(any()) } returns 7L
+
+        viewModel.onTitleChange("Reunion")
+        viewModel.onReminderToggle(15)
+        viewModel.onAlarmSoundChange(true)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 7L, listOf(15), REMINDER_KIND_ALARM) }
+    }
+
+    @Test
+    fun `cargar una tarea con recordatorios de alarma activa el interruptor`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { reminderRepository.getByOwner(REMINDER_OWNER_TASK, 10L) } returns listOf(
+            ReminderEntity(ownerId = 10L, minutesBefore = 0, kind = REMINDER_KIND_ALARM)
+        )
+
+        val viewModel = crearViewModelEditando(10L)
+
+        assertEquals(true, viewModel.uiState.value.alarmSound)
+    }
+
+    @Test
+    fun `apagar el interruptor al editar guarda los recordatorios como notificacion`() = runTest(dispatcher) {
+        coEvery { taskRepository.getById(10L) } returns tareaSimple
+        coEvery { taskRepository.update(any()) } returns Unit
+        coEvery { reminderRepository.getByOwner(REMINDER_OWNER_TASK, 10L) } returns listOf(
+            ReminderEntity(ownerId = 10L, minutesBefore = 0, kind = REMINDER_KIND_ALARM)
+        )
+        val viewModel = crearViewModelEditando(10L)
+
+        viewModel.onAlarmSoundChange(false)
+        viewModel.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, 10L, listOf(0), REMINDER_KIND_NOTICE) }
     }
 
     @Test

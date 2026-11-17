@@ -67,6 +67,20 @@
             </intent-filter>
         </receiver>
 
+        <!-- Pantalla completa de una alarma sonora (PL-11): se muestra sobre el bloqueo y enciende la
+             pantalla. No se exporta ni aparece en recientes: solo la abre la notificación.
+             showWhenLocked/turnScreenOn existen desde Android 8.1 (API 27); antes se ignoran y la
+             alarma igual suena como notificación. -->
+        <activity
+            android:name=".planner.ui.AlarmActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleInstance"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:theme="@style/Theme.StayFocused"
+            tools:targetApi="o_mr1" />
+
         <!-- Recibe la alarma de un recordatorio y los botones Completar/Posponer de su notificación.
              No se exporta: solo la propia app (AlarmManager y la notificación) lo invoca. -->
         <receiver

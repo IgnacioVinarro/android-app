@@ -175,6 +175,8 @@ fun CreateTaskScreen(
             if (uiState.hasStartTime) {
                 ReminderSection(
                     selectedMinutes = uiState.reminderMinutes,
+                    alarmSound = uiState.alarmSound,
+                    onAlarmSoundChange = viewModel::onAlarmSoundChange,
                     showRecurringNotice = isEditingRecurring,
                     onToggle = viewModel::onReminderToggle,
                     onOther = { showCustomReminderDialog = true }
@@ -388,6 +390,8 @@ private fun RecurrenceSection(
 @Composable
 private fun ReminderSection(
     selectedMinutes: List<Int>,
+    alarmSound: Boolean,
+    onAlarmSoundChange: (Boolean) -> Unit,
     showRecurringNotice: Boolean,
     onToggle: (Int) -> Unit,
     onOther: () -> Unit
@@ -415,6 +419,20 @@ private fun ReminderSection(
                 onClick = onOther,
                 label = { Text(stringResource(R.string.reminder_other)) }
             )
+        }
+        // PL-11: un interruptor por tarea; solo tiene sentido si ya hay algún recordatorio elegido.
+        if (selectedMinutes.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(stringResource(R.string.reminder_alarm_sound))
+                    Text(stringResource(R.string.reminder_alarm_sound_hint), style = MaterialTheme.typography.bodySmall)
+                }
+                Switch(checked = alarmSound, onCheckedChange = onAlarmSoundChange)
+            }
         }
         if (showRecurringNotice) {
             Text(stringResource(R.string.reminder_recurring_notice), style = MaterialTheme.typography.bodySmall)

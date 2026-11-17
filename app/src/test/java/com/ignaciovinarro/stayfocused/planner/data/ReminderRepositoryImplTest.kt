@@ -97,4 +97,46 @@ class ReminderRepositoryImplTest {
 
         assertTrue(updatedAt.captured >= antes)
     }
+
+    @Test
+    fun `replaceForOwner inserta con el kind pedido`() = runBlocking {
+        coEvery { dao.getByOwner(REMINDER_OWNER_TASK, 5L) } returns emptyList()
+        val insertados = mutableListOf<ReminderEntity>()
+        coEvery { dao.insert(capture(insertados)) } returns 1L
+
+        repository.replaceForOwner(REMINDER_OWNER_TASK, 5L, listOf(0, 15), REMINDER_KIND_ALARM)
+
+        assertTrue(insertados.all { it.kind == REMINDER_KIND_ALARM })
+    }
+
+    @Test
+    fun `replaceForOwner cambia el kind de los existentes que ya estaban`() = runBlocking {
+        coEvery { dao.getByOwner(REMINDER_OWNER_TASK, 5L) } returns listOf(existente(1L, 10), existente(2L, 20))
+
+        repository.replaceForOwner(REMINDER_OWNER_TASK, 5L, listOf(10, 20), REMINDER_KIND_ALARM)
+
+        coVerify { dao.updateKind(1L, REMINDER_KIND_ALARM, any()) }
+        coVerify { dao.updateKind(2L, REMINDER_KIND_ALARM, any()) }
+        coVerify(exactly = 0) { dao.insert(any()) }
+    }
+
+    @Test
+    fun `replaceForOwner no toca el kind si no cambio`() = runBlocking {
+        coEvery { dao.getByOwner(REMINDER_OWNER_TASK, 5L) } returns listOf(existente(1L, 10))
+
+        repository.replaceForOwner(REMINDER_OWNER_TASK, 5L, listOf(10))
+
+        coVerify(exactly = 0) { dao.updateKind(any(), any(), any()) }
+    }
+
+    @Test
+    fun `replaceForOwner no cambia el kind de los que se borran`() = runBlocking {
+        coEvery { dao.getByOwner(REMINDER_OWNER_TASK, 5L) } returns listOf(existente(1L, 10), existente(2L, 20))
+
+        repository.replaceForOwner(REMINDER_OWNER_TASK, 5L, listOf(20), REMINDER_KIND_ALARM)
+
+        coVerify { dao.softDelete(1L, any()) }
+        coVerify(exactly = 0) { dao.updateKind(1L, any(), any()) }
+        coVerify { dao.updateKind(2L, REMINDER_KIND_ALARM, any()) }
+    }
 }

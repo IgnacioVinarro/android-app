@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
 import com.ignaciovinarro.stayfocused.core.ui.TaskColorKey
 import com.ignaciovinarro.stayfocused.core.ui.TaskIconKey
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_ALARM
+import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_NOTICE
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
 import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
@@ -67,7 +69,9 @@ data class CreateTaskUiState(
     val recurrenceEnd: LocalDate = LocalDate.now(),
     // Recordatorios (PL-10): minutos antes de la hora de inicio, sin repetidos y ordenados. Solo
     // aplican con hora asignada; si se activa "sin hora" no se guarda ninguno (ticket 0012).
-    val reminderMinutes: List<Int> = emptyList()
+    val reminderMinutes: List<Int> = emptyList(),
+    // PL-11: un interruptor por tarea; true = todos sus avisos suenan como alarma (kind = "alarm").
+    val alarmSound: Boolean = false
 ) {
     val isValid: Boolean
         get() = title.isNotBlank() && durationMinutes > 0 && (!recurrenceEnabled || isRecurrenceValid)
@@ -124,8 +128,9 @@ class CreateTaskViewModel @Inject constructor(
                     null
                 }
                 loadedOccurrence = occurrence
-                val reminders = reminderRepository.getByOwner(REMINDER_OWNER_TASK, task.id)
-                    .map { it.minutesBefore }
+                val storedReminders = reminderRepository.getByOwner(REMINDER_OWNER_TASK, task.id)
+                val reminders = storedReminders.map { it.minutesBefore }
+                val alarmSound = storedReminders.any { it.kind == REMINDER_KIND_ALARM }
 
                 _uiState.update {
                     it.copy(
@@ -146,7 +151,8 @@ class CreateTaskViewModel @Inject constructor(
                         recurrenceDays = task.recurrenceDays ?: it.recurrenceDays,
                         hasRecurrenceEnd = task.recurrenceEnd != null,
                         recurrenceEnd = task.recurrenceEnd?.let(LocalDate::ofEpochDay) ?: it.recurrenceEnd,
-                        reminderMinutes = normalizeReminderMinutes(reminders)
+                        reminderMinutes = normalizeReminderMinutes(reminders),
+                        alarmSound = alarmSound
                     )
                 }
             }
@@ -180,6 +186,8 @@ class CreateTaskViewModel @Inject constructor(
         val nuevaMascara = if (it.recurrenceDays and bit != 0) it.recurrenceDays and bit.inv() else it.recurrenceDays or bit
         it.copy(recurrenceDays = nuevaMascara)
     }
+
+    fun onAlarmSoundChange(value: Boolean) = _uiState.update { it.copy(alarmSound = value) }
 
     // Prende o apaga un recordatorio de la lista (PL-10). Ignora valores fuera de rango.
     fun onReminderToggle(minutesBefore: Int) = _uiState.update {
@@ -317,7 +325,8 @@ class CreateTaskViewModel @Inject constructor(
     // Sin hora no hay recordatorios (PL-10): se guarda el conjunto vacío.
     private suspend fun saveReminders(taskId: Long, state: CreateTaskUiState) {
         val minutes = if (state.hasStartTime) normalizeReminderMinutes(state.reminderMinutes) else emptyList()
-        reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, taskId, minutes)
+        val kind = if (state.alarmSound) REMINDER_KIND_ALARM else REMINDER_KIND_NOTICE
+        reminderRepository.replaceForOwner(REMINDER_OWNER_TASK, taskId, minutes, kind)
     }
 
     // Las filas hijas no se borran solas (CLAUDE.md): al borrar la tarea se borran sus recordatorios.

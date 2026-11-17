@@ -12,11 +12,13 @@ import javax.inject.Inject
 const val ACTION_REMINDER_FIRE = "com.ignaciovinarro.stayfocused.action.REMINDER_FIRE"
 const val ACTION_REMINDER_COMPLETE = "com.ignaciovinarro.stayfocused.action.REMINDER_COMPLETE"
 const val ACTION_REMINDER_SNOOZE = "com.ignaciovinarro.stayfocused.action.REMINDER_SNOOZE"
+const val ACTION_REMINDER_DISMISS = "com.ignaciovinarro.stayfocused.action.REMINDER_DISMISS"
 
 // Cuánto dura "Posponer" (confirmado con el desarrollador, ticket 0013).
 const val REMINDER_SNOOZE_MINUTES = 10
 
-// Recibe tres cosas: la alarma que suena, y los botones "Completar" y "Posponer" de la notificación.
+// Recibe la alarma que suena y los botones de la notificación o de la pantalla de alarma:
+// "Completar", "Posponer" y "Descartar".
 @AndroidEntryPoint
 class ReminderReceiver : BroadcastReceiver() {
 
@@ -41,6 +43,7 @@ class ReminderReceiver : BroadcastReceiver() {
                     ACTION_REMINDER_FIRE -> onFire(context, reminderId, taskId, occurrenceDate)
                     ACTION_REMINDER_COMPLETE -> onComplete(context, reminderId, taskId, occurrenceDate)
                     ACTION_REMINDER_SNOOZE -> onSnooze(context, reminderId, taskId, occurrenceDate)
+                    ACTION_REMINDER_DISMISS -> ReminderNotifier.cancel(context, reminderId)
                 }
             } finally {
                 pending.finish()
@@ -65,7 +68,8 @@ class ReminderReceiver : BroadcastReceiver() {
                     ReminderNotifier.show(
                         context, reminderId, taskId, occurrenceDate,
                         title = occurrence?.overrideTitle ?: task.title,
-                        startMinutes = startMinutes
+                        startMinutes = startMinutes,
+                        kind = reminder.kind
                     )
                 }
             }

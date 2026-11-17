@@ -119,6 +119,14 @@
     <string name="a11y_nav_nutrition">Pestaña Dieta, diario del día</string>
     <string name="a11y_nav_meditation">Pestaña Meditación, temporizador y racha</string>
 
+    <!-- Alarma sonora (PL-11) -->
+    <string name="reminder_alarm_sound">Sonar como alarma</string>
+    <string name="reminder_alarm_sound_hint">Suena con el tono de alarma del teléfono y muestra una pantalla completa.</string>
+    <string name="notification_channel_alarms">Alarmas</string>
+    <string name="notification_channel_alarms_description">Alarmas sonoras de las tareas, con pantalla completa</string>
+    <string name="notification_action_dismiss">Descartar</string>
+    <string name="alarm_screen_title">Alarma</string>
+
     <!-- Permisos de los recordatorios -->
     <string name="reminder_permission_notifications_message">Para avisarte necesito permiso para mostrar notificaciones. Sin él, los recordatorios no se ven.</string>
     <string name="reminder_permission_alarm_message">Para que el aviso suene a la hora exacta, Android necesita que permitas las alarmas y recordatorios para esta app. Sin eso, los recordatorios no suenan.</string>

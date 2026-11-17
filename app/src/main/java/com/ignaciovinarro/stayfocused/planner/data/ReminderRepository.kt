@@ -21,8 +21,14 @@ interface ReminderRepository {
     suspend fun getById(id: Long): ReminderEntity?
 
     // Deja al dueño con exactamente este conjunto de `minutesBefore`: borra lógicamente los que
-    // sobran, inserta los que faltan y no toca los que ya estaban (conservan su `uuid`).
-    suspend fun replaceForOwner(ownerType: String, ownerId: Long, minutesBefore: Collection<Int>)
+    // sobran, inserta los que faltan y no toca los que ya estaban (conservan su `uuid`), salvo que
+    // su `kind` (aviso o alarma) haya cambiado: ahí solo se les actualiza el `kind`.
+    suspend fun replaceForOwner(
+        ownerType: String,
+        ownerId: Long,
+        minutesBefore: Collection<Int>,
+        kind: String = REMINDER_KIND_NOTICE
+    )
 
     suspend fun deleteByOwner(ownerType: String, ownerId: Long)
 }
@@ -36,16 +42,26 @@ class ReminderRepositoryImpl(
 
     override suspend fun getById(id: Long): ReminderEntity? = reminderDao.getById(id)
 
-    override suspend fun replaceForOwner(ownerType: String, ownerId: Long, minutesBefore: Collection<Int>) {
+    override suspend fun replaceForOwner(
+        ownerType: String,
+        ownerId: Long,
+        minutesBefore: Collection<Int>,
+        kind: String
+    ) {
         val wanted = minutesBefore.toSet()
         val existing = reminderDao.getByOwner(ownerType, ownerId)
         val now = System.currentTimeMillis()
 
         existing.filter { it.minutesBefore !in wanted }.forEach { reminderDao.softDelete(it.id, now) }
 
+        existing.filter { it.minutesBefore in wanted && it.kind != kind }
+            .forEach { reminderDao.updateKind(it.id, kind, now) }
+
         val alreadyThere = existing.map { it.minutesBefore }.toSet()
         (wanted - alreadyThere).sorted().forEach { minutes ->
-            reminderDao.insert(ReminderEntity(ownerType = ownerType, ownerId = ownerId, minutesBefore = minutes))
+            reminderDao.insert(
+                ReminderEntity(ownerType = ownerType, ownerId = ownerId, minutesBefore = minutes, kind = kind)
+            )
         }
     }
 
