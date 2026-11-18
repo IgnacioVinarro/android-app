@@ -23,6 +23,9 @@ interface CategoryRepository {
     suspend fun create(category: CategoryEntity): Long
     suspend fun update(category: CategoryEntity)
 
+    // Cantidad de transacciones vivas de la categoría: la pantalla la usa para decidir si pide reasignar.
+    suspend fun countTransactions(id: Long): Int
+
     // Borra la categoría (lógico). Si tiene transacciones, `reassignToId` es obligatorio: se mueven a esa
     // categoría (que debe existir, ser otra y del mismo tipo). Sus presupuestos se borran con ella.
     // Lanza IllegalStateException si faltan las reasignaciones e IllegalArgumentException si el destino
@@ -46,6 +49,8 @@ class CategoryRepositoryImpl(
     override suspend fun update(category: CategoryEntity) {
         categoryDao.update(category.copy(updatedAt = System.currentTimeMillis()))
     }
+
+    override suspend fun countTransactions(id: Long): Int = categoryDao.countTransactions(id)
 
     override suspend fun delete(id: Long, reassignToId: Long?) {
         val category = categoryDao.getById(id) ?: return

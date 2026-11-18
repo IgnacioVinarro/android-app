@@ -9,8 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 // Categorías predefinidas (FI-04). Los nombres viven en strings.xml; ícono y color son claves de texto.
-// Los `iconKey` "category_*" todavía no tienen dibujo asociado: el mapeo clave→ícono llega con la
-// pantalla (ticket 0029), igual que `TaskIconKey` para las tareas.
+// Los `iconKey` "category_*" se dibujan con `CategoryIconKey` (core/ui).
 data class DefaultCategorySpec(
     @StringRes val nameRes: Int,
     val type: CategoryType,

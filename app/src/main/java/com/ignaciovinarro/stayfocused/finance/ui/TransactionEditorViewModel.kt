@@ -10,6 +10,8 @@ import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
 import com.ignaciovinarro.stayfocused.finance.data.AccountRepository
 import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
+import com.ignaciovinarro.stayfocused.finance.data.TagEntity
+import com.ignaciovinarro.stayfocused.finance.data.TagRepository
 import com.ignaciovinarro.stayfocused.finance.data.TransactionEntity
 import com.ignaciovinarro.stayfocused.finance.data.TransactionRepository
 import com.ignaciovinarro.stayfocused.finance.domain.CategoryType
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -39,7 +42,9 @@ data class TransactionEditorUiState(
     val transferAccountId: Long? = null,
     val note: String = "",
     val accounts: List<AccountEntity> = emptyList(),
-    val categories: List<CategoryEntity> = emptyList()
+    val categories: List<CategoryEntity> = emptyList(),
+    val tags: List<TagEntity> = emptyList(),
+    val selectedTagIds: Set<Long> = emptySet()
 ) {
     val amountCents: Long? get() = parseArsToCents(amountText)
 
@@ -71,7 +76,8 @@ class TransactionEditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val transactionRepository: TransactionRepository,
     accountRepository: AccountRepository,
-    categoryRepository: CategoryRepository
+    categoryRepository: CategoryRepository,
+    private val tagRepository: TagRepository
 ) : ViewModel() {
 
     private val existingTransactionId: Long = savedStateHandle.get<Long>(ARG_TRANSACTION_ID) ?: 0L
@@ -98,9 +104,14 @@ class TransactionEditorViewModel @Inject constructor(
                 }
             }
         }
+        viewModelScope.launch {
+            tagRepository.observeAll().collect { tags -> _uiState.update { it.copy(tags = tags) } }
+        }
         if (existingTransactionId != 0L) {
             viewModelScope.launch {
                 val transaction = transactionRepository.getById(existingTransactionId) ?: return@launch
+                val tagIds = tagRepository.observeLinks().first()
+                    .filter { it.transactionId == transaction.id }.map { it.tagId }.toSet()
                 loadedTransaction = transaction
                 _uiState.update {
                     it.copy(
@@ -111,7 +122,8 @@ class TransactionEditorViewModel @Inject constructor(
                         accountId = transaction.accountId,
                         categoryId = transaction.categoryId,
                         transferAccountId = transaction.transferAccountId,
-                        note = transaction.note.orEmpty()
+                        note = transaction.note.orEmpty(),
+                        selectedTagIds = tagIds
                     )
                 }
             }
@@ -135,6 +147,10 @@ class TransactionEditorViewModel @Inject constructor(
     fun onDateChange(value: LocalDate) = _uiState.update { it.copy(date = value) }
     fun onNoteChange(value: String) = _uiState.update { it.copy(note = value) }
     fun onCategoryChange(value: Long) = _uiState.update { it.copy(categoryId = value) }
+    fun onTagToggle(tagId: Long) = _uiState.update {
+        it.copy(selectedTagIds = if (tagId in it.selectedTagIds) it.selectedTagIds - tagId else it.selectedTagIds + tagId)
+    }
+
     fun onTransferAccountChange(value: Long) = _uiState.update { it.copy(transferAccountId = value) }
 
     // Si la nueva cuenta de origen era el destino de la transferencia, el destino se descarta.
@@ -149,6 +165,12 @@ class TransactionEditorViewModel @Inject constructor(
         if (!state.isValid || cents == null || accountId == null) return
         viewModelScope.launch {
             val note = state.note.trim().ifEmpty { null }
+            // Una transferencia no lleva etiquetas; y solo se guardan las que siguen existiendo.
+            val tagIds = if (state.type == TransactionType.TRANSFER) {
+                emptySet()
+            } else {
+                state.selectedTagIds.intersect(state.tags.map { it.id }.toSet())
+            }
             val original = loadedTransaction
             if (original == null) {
                 transactionRepository.create(
@@ -160,10 +182,10 @@ class TransactionEditorViewModel @Inject constructor(
                         categoryId = state.categoryId,
                         transferAccountId = state.transferAccountId,
                         note = note
-                    )
+                    ),
+                    tagIds
                 )
             } else {
-                // Etiquetas: ver nota del ticket 0031 (todavía no hay forma de asignarlas).
                 transactionRepository.update(
                     original.copy(
                         type = state.type.name,
@@ -174,7 +196,7 @@ class TransactionEditorViewModel @Inject constructor(
                         transferAccountId = state.transferAccountId,
                         note = note
                     ),
-                    emptySet()
+                    tagIds
                 )
             }
             onSaved()

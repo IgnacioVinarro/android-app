@@ -1,7 +1,7 @@
 # Ticket 0031 – Finanzas: transacciones (FI-01, FI-02, FI-03 parcial, parte 3)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Tercer paso de la Fase 2. Lista de movimientos en la pantalla Finanzas y formulario para registrar,

@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.ignaciovinarro.stayfocused.R
@@ -26,16 +27,38 @@ import com.ignaciovinarro.stayfocused.R
 // reuso).
 @Composable
 fun TaskIconSelector(selectedKey: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+    IconKeySelector(
+        options = TaskIconKey.entries.map { it.key to it.icon },
+        selectedKey = selectedKey,
+        onSelect = onSelect,
+        modifier = modifier
+    )
+}
+
+// Mismo selector, con los íconos de categorías de Finanzas.
+@Composable
+fun CategoryIconSelector(selectedKey: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+    IconKeySelector(
+        options = CategoryIconKey.entries.map { it.key to it.icon },
+        selectedKey = selectedKey,
+        onSelect = onSelect,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun IconKeySelector(
+    options: List<Pair<String, ImageVector>>,
+    selectedKey: String,
+    onSelect: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     Row(
         modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        TaskIconKey.entries.forEach { iconOption ->
-            IconOption(
-                icon = iconOption,
-                selected = iconOption.key == selectedKey,
-                onClick = { onSelect(iconOption.key) }
-            )
+        options.forEach { (key, icon) ->
+            IconOption(icon = icon, selected = key == selectedKey, onClick = { onSelect(key) })
         }
     }
 }
@@ -57,7 +80,7 @@ fun TaskColorSelector(selectedKey: String, onSelect: (String) -> Unit, modifier:
 }
 
 @Composable
-private fun IconOption(icon: TaskIconKey, selected: Boolean, onClick: () -> Unit) {
+private fun IconOption(icon: ImageVector, selected: Boolean, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
         shape = CircleShape,
@@ -72,7 +95,7 @@ private fun IconOption(icon: TaskIconKey, selected: Boolean, onClick: () -> Unit
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                imageVector = icon.icon,
+                imageVector = icon,
                 contentDescription = if (selected) stringResource(R.string.a11y_task_icon_selected) else null,
                 tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )

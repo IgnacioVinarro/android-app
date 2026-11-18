@@ -4,6 +4,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
@@ -100,6 +101,12 @@ class CategoryRepositoryImplTest {
         coEvery { dao.countAllRows() } returns 2
         repository.seedDefaults(listOf(categoria(0)))
         coVerify(exactly = 0) { dao.insertAll(any()) }
+    }
+
+    @Test
+    fun `countTransactions delega en el dao`() = runBlocking {
+        coEvery { dao.countTransactions(7L) } returns 5
+        assertEquals(5, repository.countTransactions(7L))
     }
 
     @Test

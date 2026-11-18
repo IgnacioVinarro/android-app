@@ -44,6 +44,7 @@ import com.ignaciovinarro.stayfocused.R
 import com.ignaciovinarro.stayfocused.core.ui.AppDatePickerDialog
 import com.ignaciovinarro.stayfocused.core.ui.Choice
 import com.ignaciovinarro.stayfocused.core.ui.ChoiceChips
+import com.ignaciovinarro.stayfocused.core.ui.MultiChoiceChips
 import com.ignaciovinarro.stayfocused.core.util.formatShortDate
 import com.ignaciovinarro.stayfocused.finance.domain.TransactionType
 
@@ -162,6 +163,15 @@ fun TransactionEditorScreen(
                     choices = uiState.visibleCategories.map { Choice(it.id, it.name) },
                     selectedId = uiState.categoryId,
                     onSelect = viewModel::onCategoryChange
+                )
+            }
+
+            if (!isTransfer && uiState.tags.isNotEmpty()) {
+                Text(stringResource(R.string.transaction_field_tags), style = MaterialTheme.typography.labelLarge)
+                MultiChoiceChips(
+                    choices = uiState.tags.map { Choice(it.id, it.name) },
+                    selectedIds = uiState.selectedTagIds,
+                    onToggle = viewModel::onTagToggle
                 )
             }
 

@@ -5,7 +5,10 @@ import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
 import com.ignaciovinarro.stayfocused.finance.data.AccountRepository
 import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
+import com.ignaciovinarro.stayfocused.finance.data.TagEntity
+import com.ignaciovinarro.stayfocused.finance.data.TagRepository
 import com.ignaciovinarro.stayfocused.finance.data.TransactionEntity
+import com.ignaciovinarro.stayfocused.finance.data.TransactionTagEntity
 import com.ignaciovinarro.stayfocused.finance.data.TransactionRepository
 import com.ignaciovinarro.stayfocused.finance.domain.TransactionType
 import io.mockk.coEvery
@@ -35,6 +38,7 @@ class TransactionEditorViewModelTest {
     private val transactionRepository = mockk<TransactionRepository>(relaxed = true)
     private val accountRepository = mockk<AccountRepository>()
     private val categoryRepository = mockk<CategoryRepository>()
+    private val tagRepository = mockk<TagRepository>()
     private val dispatcher = StandardTestDispatcher()
 
     private val efectivo = AccountEntity(id = 1, name = "Efectivo", type = "CASH", iconKey = "i", colorKey = "green")
@@ -42,11 +46,16 @@ class TransactionEditorViewModelTest {
     private val comida = CategoryEntity(id = 10, name = "Comida", type = "EXPENSE", iconKey = "i", colorKey = "orange")
     private val sueldo = CategoryEntity(id = 11, name = "Sueldo", type = "INCOME", iconKey = "i", colorKey = "green")
 
+    private val viaje = TagEntity(id = 20, name = "viaje")
+    private val auto = TagEntity(id = 21, name = "auto")
+
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         every { accountRepository.observeAll() } returns flowOf(listOf(efectivo, banco))
         every { categoryRepository.observeAll() } returns flowOf(listOf(comida, sueldo))
+        every { tagRepository.observeAll() } returns flowOf(listOf(viaje, auto))
+        every { tagRepository.observeLinks() } returns flowOf(emptyList())
     }
 
     @After
@@ -57,7 +66,7 @@ class TransactionEditorViewModelTest {
     private fun viewModel(transactionId: Long = 0L): TransactionEditorViewModel {
         val vm = TransactionEditorViewModel(
             SavedStateHandle(mapOf("transactionId" to transactionId)),
-            transactionRepository, accountRepository, categoryRepository
+            transactionRepository, accountRepository, categoryRepository, tagRepository
         )
         dispatcher.scheduler.advanceUntilIdle()
         return vm
@@ -258,6 +267,54 @@ class TransactionEditorViewModelTest {
 
         assertTrue(borrada)
         coVerify { transactionRepository.delete(7L) }
+    }
+
+    @Test
+    fun `al guardar un gasto nuevo se envian las etiquetas elegidas`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onAmountChange("100")
+        vm.onCategoryChange(10L)
+        vm.onTagToggle(20L)
+        vm.onTagToggle(21L)
+        vm.onTagToggle(21L) // la apaga de nuevo
+
+        vm.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { transactionRepository.create(any(), setOf(20L)) }
+    }
+
+    @Test
+    fun `una transferencia se guarda sin etiquetas`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onAmountChange("100")
+        vm.onTagToggle(20L)
+        vm.onTypeChange(TransactionType.TRANSFER)
+        vm.onTransferAccountChange(2L)
+
+        vm.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { transactionRepository.create(any(), emptySet()) }
+    }
+
+    @Test
+    fun `al editar se cargan las etiquetas del movimiento y se conservan al guardar`() = runTest(dispatcher) {
+        coEvery { transactionRepository.getById(7L) } returns
+            TransactionEntity(id = 7, type = "EXPENSE", amount = 100, date = 19000, accountId = 1, categoryId = 10)
+        every { tagRepository.observeLinks() } returns flowOf(
+            listOf(
+                TransactionTagEntity(transactionId = 7, tagId = 21),
+                TransactionTagEntity(transactionId = 8, tagId = 20)
+            )
+        )
+        val vm = viewModel(7L)
+        assertEquals(setOf(21L), vm.uiState.value.selectedTagIds)
+
+        vm.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { transactionRepository.update(any(), setOf(21L)) }
     }
 
     @Test

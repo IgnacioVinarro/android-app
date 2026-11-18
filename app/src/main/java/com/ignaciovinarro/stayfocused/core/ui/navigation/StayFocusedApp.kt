@@ -19,7 +19,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ignaciovinarro.stayfocused.core.settings.ui.SettingsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.AccountEditorScreen
+import com.ignaciovinarro.stayfocused.finance.domain.CategoryType
+import com.ignaciovinarro.stayfocused.finance.ui.CategoryEditorScreen
+import com.ignaciovinarro.stayfocused.finance.ui.CategoryListScreen
 import com.ignaciovinarro.stayfocused.finance.ui.FinanceScreen
+import com.ignaciovinarro.stayfocused.finance.ui.TagsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.TransactionEditorScreen
 import com.ignaciovinarro.stayfocused.meditation.ui.MeditationScreen
 import com.ignaciovinarro.stayfocused.planner.ui.CreateTaskScreen
@@ -36,6 +40,11 @@ private const val ROUTE_ACCOUNT_EDITOR = "finance/accounts/editor/{accountId}"
 private const val ARG_ACCOUNT_ID = "accountId"
 private const val ROUTE_TRANSACTION_EDITOR = "finance/transactions/editor/{transactionId}"
 private const val ARG_TRANSACTION_ID = "transactionId"
+private const val ROUTE_TAGS = "finance/tags"
+private const val ROUTE_CATEGORIES = "finance/categories"
+private const val ROUTE_CATEGORY_EDITOR = "finance/categories/editor/{categoryId}?type={type}"
+private const val ARG_CATEGORY_ID = "categoryId"
+private const val ARG_CATEGORY_TYPE = "type"
 private const val ARG_TASK_ID = "taskId"
 private const val ARG_OCCURRENCE_DATE = "date"
 private const val ARG_NEW_DATE = "newDate"
@@ -57,6 +66,10 @@ private fun routineEditorRoute(routineId: Long): String = "planner/routines/edit
 
 // 0 = cuenta nueva.
 private fun accountEditorRoute(accountId: Long): String = "finance/accounts/editor/$accountId"
+
+// 0 = categoría nueva; `type` solo importa en las nuevas (al editar se lee de la base).
+private fun categoryEditorRoute(categoryId: Long, type: CategoryType): String =
+    "finance/categories/editor/$categoryId?type=${type.name}"
 
 // 0 = movimiento nuevo.
 private fun transactionEditorRoute(transactionId: Long): String = "finance/transactions/editor/$transactionId"
@@ -98,7 +111,30 @@ fun StayFocusedApp(launchRequest: AppLaunchRequest? = null, onLaunchRequestHandl
                     onAddAccount = { navController.navigate(accountEditorRoute(0L)) },
                     onEditAccount = { accountId -> navController.navigate(accountEditorRoute(accountId)) },
                     onAddTransaction = { navController.navigate(transactionEditorRoute(0L)) },
-                    onEditTransaction = { id -> navController.navigate(transactionEditorRoute(id)) }
+                    onEditTransaction = { id -> navController.navigate(transactionEditorRoute(id)) },
+                    onOpenCategories = { navController.navigate(ROUTE_CATEGORIES) },
+                    onOpenTags = { navController.navigate(ROUTE_TAGS) }
+                )
+            }
+            composable(ROUTE_TAGS) { TagsScreen(onBack = { navController.popBackStack() }) }
+            composable(ROUTE_CATEGORIES) {
+                CategoryListScreen(
+                    onBack = { navController.popBackStack() },
+                    onAddCategory = { type -> navController.navigate(categoryEditorRoute(0L, type)) },
+                    onEditCategory = { id -> navController.navigate(categoryEditorRoute(id, CategoryType.EXPENSE)) }
+                )
+            }
+            composable(
+                ROUTE_CATEGORY_EDITOR,
+                arguments = listOf(
+                    navArgument(ARG_CATEGORY_ID) { type = NavType.LongType },
+                    navArgument(ARG_CATEGORY_TYPE) { type = NavType.StringType; defaultValue = CategoryType.EXPENSE.name }
+                )
+            ) {
+                CategoryEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                    onDeleted = { navController.popBackStack() }
                 )
             }
             composable(StayFocusedDestination.GYM.route) { GymDietScreen() }

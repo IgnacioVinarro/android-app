@@ -15,6 +15,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,14 +57,42 @@ fun FinanceScreen(
     onEditAccount: (accountId: Long) -> Unit = {},
     onAddTransaction: () -> Unit = {},
     onEditTransaction: (transactionId: Long) -> Unit = {},
+    onOpenCategories: () -> Unit = {},
+    onOpenTags: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: FinanceViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var menuOpen by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.nav_finance)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.nav_finance)) },
+                actions = {
+                    IconButton(onClick = { menuOpen = true }) {
+                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.finance_menu_more))
+                    }
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.finance_menu_categories)) },
+                            onClick = {
+                                menuOpen = false
+                                onOpenCategories()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.finance_menu_tags)) },
+                            onClick = {
+                                menuOpen = false
+                                onOpenTags()
+                            }
+                        )
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             // Sin cuentas no se puede registrar nada: el alta de movimientos espera a la primera.
             if (uiState.accounts.isNotEmpty()) {
@@ -193,7 +227,9 @@ private fun TransactionCard(row: TransactionRow, onClick: () -> Unit) {
         else -> row.categoryName ?: stringResource(R.string.finance_no_category)
     }
     val dateText = formatShortDate(LocalDate.ofEpochDay(transaction.date))
-    val subtitle = if (row.type == TransactionType.TRANSFER) dateText else "$dateText · ${row.accountName}"
+    val baseSubtitle = if (row.type == TransactionType.TRANSFER) dateText else "$dateText · ${row.accountName}"
+    // Las etiquetas llevan "#" para que se distingan sin depender del color.
+    val subtitle = (listOf(baseSubtitle) + row.tagNames.map { "#$it" }).joinToString(" · ")
     // El signo acompaña al color: ingreso "+", gasto "-", transferencia sin signo.
     val amountText = when (row.type) {
         TransactionType.INCOME -> "+" + formatArs(transaction.amount)

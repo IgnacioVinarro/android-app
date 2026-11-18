@@ -5,7 +5,10 @@ import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
 import com.ignaciovinarro.stayfocused.finance.data.AccountRepository
 import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
+import com.ignaciovinarro.stayfocused.finance.data.TagEntity
+import com.ignaciovinarro.stayfocused.finance.data.TagRepository
 import com.ignaciovinarro.stayfocused.finance.data.TransactionEntity
+import com.ignaciovinarro.stayfocused.finance.data.TransactionTagEntity
 import com.ignaciovinarro.stayfocused.finance.data.TransactionRepository
 import com.ignaciovinarro.stayfocused.finance.domain.TransactionType
 import io.mockk.every
@@ -31,6 +34,7 @@ class FinanceViewModelTest {
     private val accountRepository = mockk<AccountRepository>()
     private val transactionRepository = mockk<TransactionRepository>()
     private val categoryRepository = mockk<CategoryRepository>()
+    private val tagRepository = mockk<TagRepository>()
     private val dispatcher = StandardTestDispatcher()
 
     @Before
@@ -55,12 +59,37 @@ class FinanceViewModelTest {
     private fun viewModel(
         accounts: List<AccountEntity>,
         transactions: List<TransactionEntity>,
-        categories: List<CategoryEntity> = emptyList()
+        categories: List<CategoryEntity> = emptyList(),
+        tags: List<TagEntity> = emptyList(),
+        links: List<TransactionTagEntity> = emptyList()
     ): FinanceViewModel {
         every { accountRepository.observeAll() } returns flowOf(accounts)
         every { transactionRepository.observeAll() } returns flowOf(transactions)
         every { categoryRepository.observeAll() } returns flowOf(categories)
-        return FinanceViewModel(accountRepository, transactionRepository, categoryRepository)
+        every { tagRepository.observeAll() } returns flowOf(tags)
+        every { tagRepository.observeLinks() } returns flowOf(links)
+        return FinanceViewModel(accountRepository, transactionRepository, categoryRepository, tagRepository)
+    }
+
+    @Test
+    fun `cada movimiento muestra los nombres de sus etiquetas ordenados`() = runTest(dispatcher) {
+        val vm = viewModel(
+            accounts = listOf(cuenta(1, 0)),
+            transactions = listOf(tx("EXPENSE", 100, accountId = 1).copy(id = 7), tx("EXPENSE", 200, accountId = 1).copy(id = 8)),
+            tags = listOf(TagEntity(id = 1, name = "viaje"), TagEntity(id = 2, name = "auto")),
+            links = listOf(
+                TransactionTagEntity(transactionId = 7, tagId = 1),
+                TransactionTagEntity(transactionId = 7, tagId = 2)
+            )
+        )
+
+        vm.uiState.test {
+            awaitItem() // estado inicial (cargando)
+            val rows = awaitItem().transactions.associateBy { it.transaction.id }
+            assertEquals(listOf("auto", "viaje"), rows.getValue(7).tagNames)
+            assertEquals(emptyList<String>(), rows.getValue(8).tagNames)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test

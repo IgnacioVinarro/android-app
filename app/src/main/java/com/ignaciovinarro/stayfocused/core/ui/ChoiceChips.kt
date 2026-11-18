@@ -16,7 +16,6 @@ data class Choice(val id: Long, val label: String)
 
 // Elección única entre pocas opciones (cuentas, categorías…), en filas que se acomodan solas. La
 // opción elegida lleva un tilde además del color, para que el estado no dependa solo del color.
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChoiceChips(
     choices: List<Choice>,
@@ -24,15 +23,32 @@ fun ChoiceChips(
     onSelect: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    MultiChoiceChips(
+        choices = choices,
+        selectedIds = setOfNotNull(selectedId),
+        onToggle = onSelect,
+        modifier = modifier
+    )
+}
+
+// Elección múltiple (etiquetas…): igual que ChoiceChips, pero cada toque prende o apaga una opción.
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun MultiChoiceChips(
+    choices: List<Choice>,
+    selectedIds: Set<Long>,
+    onToggle: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
     FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         choices.forEach { choice ->
-            val selected = choice.id == selectedId
+            val selected = choice.id in selectedIds
             FilterChip(
                 selected = selected,
-                onClick = { onSelect(choice.id) },
+                onClick = { onToggle(choice.id) },
                 label = { Text(choice.label) },
                 leadingIcon = if (selected) {
                     { Icon(Icons.Filled.Check, contentDescription = null) }

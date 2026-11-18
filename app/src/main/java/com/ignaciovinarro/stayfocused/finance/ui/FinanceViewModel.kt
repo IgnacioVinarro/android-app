@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
 import com.ignaciovinarro.stayfocused.finance.data.AccountRepository
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
+import com.ignaciovinarro.stayfocused.finance.data.TagRepository
 import com.ignaciovinarro.stayfocused.finance.data.TransactionEntity
 import com.ignaciovinarro.stayfocused.finance.data.TransactionRepository
 import com.ignaciovinarro.stayfocused.finance.domain.TransactionType
@@ -26,7 +27,8 @@ data class TransactionRow(
     val type: TransactionType?,
     val categoryName: String?,
     val accountName: String,
-    val transferAccountName: String?
+    val transferAccountName: String?,
+    val tagNames: List<String> = emptyList()
 )
 
 // `isLoading` evita mostrar un instante el estado vacío ("no tenés cuentas") antes de que llegue la
@@ -42,7 +44,8 @@ data class FinanceUiState(
 class FinanceViewModel @Inject constructor(
     accountRepository: AccountRepository,
     transactionRepository: TransactionRepository,
-    categoryRepository: CategoryRepository
+    categoryRepository: CategoryRepository,
+    tagRepository: TagRepository
 ) : ViewModel() {
 
     // El saldo de cada cuenta se calcula con las transacciones (nunca se guarda). El total es la
@@ -50,11 +53,15 @@ class FinanceViewModel @Inject constructor(
     val uiState: StateFlow<FinanceUiState> = combine(
         accountRepository.observeAll(),
         transactionRepository.observeAll(),
-        categoryRepository.observeAll()
-    ) { accounts, transactions, categories ->
+        categoryRepository.observeAll(),
+        tagRepository.observeAll(),
+        tagRepository.observeLinks()
+    ) { accounts, transactions, categories, tags, links ->
         val items = accounts.map { AccountWithBalance(it, accountBalance(it, transactions)) }
         val accountNames = accounts.associate { it.id to it.name }
         val categoryNames = categories.associate { it.id to it.name }
+        val tagNames = tags.associate { it.id to it.name }
+        val tagsByTransaction = links.groupBy({ it.transactionId }, { it.tagId })
         FinanceUiState(
             accounts = items,
             totalBalance = items.sumOf { it.balance },
@@ -64,7 +71,8 @@ class FinanceViewModel @Inject constructor(
                     type = it.typeOrNull(),
                     categoryName = it.categoryId?.let(categoryNames::get),
                     accountName = accountNames[it.accountId].orEmpty(),
-                    transferAccountName = it.transferAccountId?.let(accountNames::get)
+                    transferAccountName = it.transferAccountId?.let(accountNames::get),
+                    tagNames = tagsByTransaction[it.id].orEmpty().mapNotNull(tagNames::get).sorted()
                 )
             },
             isLoading = false

@@ -299,4 +299,41 @@
     <string name="finance_category_other_expense">Otros gastos</string>
     <string name="finance_category_salary">Sueldo</string>
     <string name="finance_category_other_income">Otros ingresos</string>
+
+    <!-- Finanzas: categorías (ticket 0032) -->
+    <string name="finance_menu_categories">Categorías</string>
+    <string name="finance_menu_more">Más opciones</string>
+    <string name="categories_title">Categorías</string>
+    <string name="categories_type_expense">Gastos</string>
+    <string name="categories_type_income">Ingresos</string>
+    <string name="categories_empty">No hay categorías de este tipo. Tocá + para crear una.</string>
+    <string name="a11y_add_category">Agregar categoría</string>
+    <string name="a11y_category_row">Categoría %1$s. Tocá para editar</string>
+    <string name="category_editor_title_new">Nueva categoría</string>
+    <string name="category_editor_title_edit">Editar categoría</string>
+    <string name="category_field_name">Nombre</string>
+    <string name="category_field_icon">Ícono</string>
+    <string name="category_delete">Eliminar categoría</string>
+    <string name="category_delete_confirm_title">¿Eliminar la categoría?</string>
+    <string name="category_delete_confirm_message">Se va a eliminar «%1$s» y sus presupuestos.</string>
+    <string name="category_delete_reassign_message">«%1$s» tiene %2$d movimientos. Elegí la categoría a la que pasarlos; también se eliminan sus presupuestos.</string>
+    <string name="category_delete_blocked_title">No se puede eliminar</string>
+    <string name="category_delete_blocked_message">Esta categoría tiene movimientos y no hay otra del mismo tipo para pasarlos. Creá otra primero.</string>
+
+    <!-- Finanzas: etiquetas (ticket 0033) -->
+    <string name="finance_menu_tags">Etiquetas</string>
+    <string name="tags_title">Etiquetas</string>
+    <string name="tags_empty">Todavía no creaste etiquetas. Tocá + para crear la primera.</string>
+    <string name="a11y_add_tag">Agregar etiqueta</string>
+    <string name="a11y_tag_rename">Renombrar etiqueta %1$s</string>
+    <string name="a11y_tag_delete">Eliminar etiqueta %1$s</string>
+    <string name="tag_dialog_title_new">Nueva etiqueta</string>
+    <string name="tag_dialog_title_rename">Renombrar etiqueta</string>
+    <string name="tag_field_name">Nombre</string>
+    <string name="tag_error_empty">Escribí un nombre</string>
+    <string name="tag_error_too_long">Máximo %1$d caracteres</string>
+    <string name="tag_error_duplicate">Ya existe una etiqueta con ese nombre</string>
+    <string name="tag_delete_confirm_title">¿Eliminar la etiqueta?</string>
+    <string name="tag_delete_confirm_message">Se va a eliminar «%1$s» y se quita de todos los movimientos.</string>
+    <string name="transaction_field_tags">Etiquetas (opcional)</string>
 </resources>
