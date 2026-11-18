@@ -53,7 +53,7 @@ MainActivity.kt
 
 - Cada área separa `data` (entidades, DAO, repositorio), `domain` (reglas puras) y `ui`.
 - **Las áreas no se llaman entre sí**: se comunican solo a través de `core`.
-- Una sola actividad con un `NavHost`. Barra inferior: Hoy, Finanzas, Gimnasio, Dieta, Meditación. Música, Tiempo de pantalla y Ajustes son destinos secundarios.
+- Una sola actividad con un `NavHost`. Barra inferior (5 destinos): Hoy, Finanzas, Gimnasio, Meditación, **Tiempo de pantalla** (último; ticket 0025; la función es de la fase 4, por ahora es una pantalla provisoria). **Dieta no es un destino de la barra: es una pestaña dentro de Gimnasio** (tab bar en su header: primero Gimnasio, por defecto; luego Dieta; ticket 0023). Música y Ajustes son destinos secundarios (Ajustes se abre desde un ícono de engranaje en la pantalla "Hoy").
 
 ## Línea de tiempo (eje de la app)
 

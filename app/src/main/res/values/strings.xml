@@ -116,8 +116,9 @@
     <string name="a11y_nav_today">Pestaña Hoy, línea de tiempo del día</string>
     <string name="a11y_nav_finance">Pestaña Finanzas, resumen financiero</string>
     <string name="a11y_nav_gym">Pestaña Gimnasio, rutinas y sesiones</string>
-    <string name="a11y_nav_nutrition">Pestaña Dieta, diario del día</string>
     <string name="a11y_nav_meditation">Pestaña Meditación, temporizador y racha</string>
+    <string name="a11y_nav_screentime">Pestaña Tiempo de pantalla, uso del teléfono</string>
+    <string name="a11y_open_settings">Abrir Ajustes</string>
 
     <!-- Subtareas (PL-04) -->
     <string name="subtasks_section_title">Subtareas</string>
@@ -131,6 +132,13 @@
         <item quantity="one">%d atrasada</item>
         <item quantity="other">%d atrasadas</item>
     </plurals>
+
+    <!-- Widget de próximas tareas (PL-16) -->
+    <string name="widget_title">Hoy</string>
+    <string name="widget_description">Las próximas tareas de hoy y un acceso rápido para crear una</string>
+    <string name="widget_progress">%1$d de %2$d tareas completadas</string>
+    <string name="widget_empty_no_tasks">No hay tareas hoy</string>
+    <string name="widget_empty_all_done">No hay más tareas hoy</string>
 
     <!-- Temporizador de enfoque (PL-13) -->
     <string name="notification_channel_focus">Enfoque</string>

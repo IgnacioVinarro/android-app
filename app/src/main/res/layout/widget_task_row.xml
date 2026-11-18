@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una fila del widget: franja del color de la tarea, hora y título. Hora y título van en texto: el color
+     de la franja no es el único dato (CLAUDE.md). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_row_root"
+    android:layout_width="match_parent"
+    android:layout_height="36dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal">
+
+    <!-- ImageView sin imagen: un View simple no está permitido en un RemoteViews. -->
+    <ImageView
+        android:id="@+id/widget_row_bar"
+        android:layout_width="4dp"
+        android:layout_height="24dp"
+        android:contentDescription="@null"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/widget_row_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:textColor="@color/widget_text_secondary"
+        android:textSize="13sp" />
+
+    <TextView
+        android:id="@+id/widget_row_title"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_weight="1"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/widget_text"
+        android:textSize="14sp" />
+</LinearLayout>

@@ -7,6 +7,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -16,14 +17,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.ignaciovinarro.stayfocused.core.settings.ui.SettingsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.FinanceScreen
-import com.ignaciovinarro.stayfocused.gym.ui.GymScreen
 import com.ignaciovinarro.stayfocused.meditation.ui.MeditationScreen
-import com.ignaciovinarro.stayfocused.nutrition.ui.NutritionScreen
 import com.ignaciovinarro.stayfocused.planner.ui.CreateTaskScreen
 import com.ignaciovinarro.stayfocused.planner.ui.RoutineEditorScreen
 import com.ignaciovinarro.stayfocused.planner.ui.RoutinesScreen
 import com.ignaciovinarro.stayfocused.planner.ui.TodayScreen
+import com.ignaciovinarro.stayfocused.screentime.ui.ScreenTimeScreen
+import java.time.LocalDate
 
 private const val ROUTE_CREATE_TASK = "planner/task/{taskId}?date={date}&newDate={newDate}&start={start}&gap={gap}"
 private const val ROUTE_ROUTINES = "planner/routines"
@@ -48,8 +50,17 @@ private fun editTaskRoute(taskId: Long, occurrenceDate: Long): String = "planner
 private fun routineEditorRoute(routineId: Long): String = "planner/routines/editor/$routineId"
 
 @Composable
-fun StayFocusedApp() {
+fun StayFocusedApp(launchRequest: AppLaunchRequest? = null, onLaunchRequestHandled: () -> Unit = {}) {
     val navController = rememberNavController()
+
+    // Pedido de arranque (widget, PL-16): se atiende y se avisa que ya está hecho, para no repetirlo.
+    LaunchedEffect(launchRequest) {
+        when (launchRequest) {
+            AppLaunchRequest.NEW_TASK -> navController.navigate(createTaskRoute(LocalDate.now().toEpochDay()))
+            null -> return@LaunchedEffect
+        }
+        onLaunchRequestHandled()
+    }
 
     Scaffold(
         bottomBar = { StayFocusedBottomBar(navController) }
@@ -64,15 +75,18 @@ fun StayFocusedApp() {
                     onAddTask = { date -> navController.navigate(createTaskRoute(date)) },
                     onCreateTaskInGap = { date, start, gap -> navController.navigate(createTaskRoute(date, start, gap)) },
                     onOpenRoutines = { navController.navigate(ROUTE_ROUTINES) },
+                    onOpenSettings = { navController.navigate(ROUTE_SETTINGS) },
                     onEditTask = { taskId, occurrenceDate ->
                         navController.navigate(editTaskRoute(taskId, occurrenceDate))
                     }
                 )
             }
             composable(StayFocusedDestination.FINANCE.route) { FinanceScreen() }
-            composable(StayFocusedDestination.GYM.route) { GymScreen() }
-            composable(StayFocusedDestination.NUTRITION.route) { NutritionScreen() }
+            composable(StayFocusedDestination.GYM.route) { GymDietScreen() }
             composable(StayFocusedDestination.MEDITATION.route) { MeditationScreen() }
+            composable(StayFocusedDestination.SCREEN_TIME.route) { ScreenTimeScreen() }
+            // Destino secundario: se abre desde "Hoy" y se vuelve con la flecha.
+            composable(ROUTE_SETTINGS) { SettingsScreen(onBack = { navController.popBackStack() }) }
             composable(
                 ROUTE_CREATE_TASK,
                 arguments = listOf(

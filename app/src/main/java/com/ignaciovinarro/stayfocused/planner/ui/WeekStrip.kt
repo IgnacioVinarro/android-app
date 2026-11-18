@@ -55,7 +55,9 @@ fun WeekStrip(
     onPreviousWeek: () -> Unit,
     onNextWeek: () -> Unit,
     onGoToToday: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    // Acción opcional al final de la fila del resumen (ej. el engranaje de Ajustes, que pone la pantalla).
+    trailingAction: @Composable () -> Unit = {}
 ) {
     // Sin datos todavía (primer cuadro) no hay nada que dibujar.
     if (week.isEmpty()) return
@@ -99,6 +101,7 @@ fun WeekStrip(
             if (selectedDate != today) {
                 TextButton(onClick = onGoToToday) { Text(stringResource(R.string.week_go_today)) }
             }
+            trailingAction()
         }
     }
 }

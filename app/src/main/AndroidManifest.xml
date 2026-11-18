@@ -49,6 +49,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.StayFocused"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -89,6 +90,20 @@
         <receiver
             android:name=".planner.data.ReminderReceiver"
             android:exported="false" />
+
+        <!-- Widget de inicio con las próximas tareas (PL-16). Se exporta porque el launcher del teléfono es
+             quien lo invoca; solo recibe APPWIDGET_UPDATE y no expone datos. -->
+        <receiver
+            android:name=".planner.widget.UpcomingTasksWidgetProvider"
+            android:exported="true"
+            android:label="@string/widget_title">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/upcoming_tasks_widget_info" />
+        </receiver>
 
         <!-- Temporizador de enfoque (PL-13). El servicio mantiene viva la app mientras corre y muestra la
              notificación persistente; el receptor recibe la alarma de fin y los botones de esa notificación.

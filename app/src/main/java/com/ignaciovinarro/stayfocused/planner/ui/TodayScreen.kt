@@ -43,11 +43,13 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -107,6 +109,7 @@ fun TodayScreen(
     onAddTask: (date: Long) -> Unit = {},
     onCreateTaskInGap: (date: Long, startMinutes: Int, gapMinutes: Int) -> Unit = { _, _, _ -> },
     onOpenRoutines: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
     viewModel: TodayViewModel = hiltViewModel(),
@@ -140,7 +143,13 @@ fun TodayScreen(
                 onSelectDay = viewModel::onSelectDay,
                 onPreviousWeek = viewModel::onPreviousWeek,
                 onNextWeek = viewModel::onNextWeek,
-                onGoToToday = viewModel::onGoToToday
+                onGoToToday = viewModel::onGoToToday,
+                // Ajustes es un destino secundario que se abre desde acá (ticket 0025).
+                trailingAction = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Filled.Settings, contentDescription = stringResource(R.string.a11y_open_settings))
+                    }
+                }
             )
 
             // Enfoque en curso (PL-13): solo si hay una sesión.

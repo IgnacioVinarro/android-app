@@ -410,7 +410,7 @@ Son las funciones que comparten todos los módulos y que dan coherencia a la app
 
 | ID | Función | Descripción |
 | --- | --- | --- |
-| TR-01 | Navegación | Barra inferior en el teléfono (Hoy, Finanzas, Gimnasio, Dieta, Meditación) y menú lateral en computadora; Música accesible desde un mini reproductor |
+| TR-01 | Navegación | Barra inferior en el teléfono (Hoy, Finanzas, Gimnasio, Meditación y Tiempo de pantalla, en ese orden; Dieta es una pestaña dentro de Gimnasio, con un tab bar en su encabezado: primero Gimnasio, por defecto, luego Dieta) y menú lateral en computadora; Música accesible desde un mini reproductor |
 | TR-02 | Pantalla "Hoy" | Línea de tiempo con tarjetas resumen de cada módulo (gasto del día, macros, próxima rutina, racha) |
 | TR-03 | Sistema de bloques | Cada módulo registra sus tipos de evento en la línea de tiempo, con ícono, color y acción propia al tocarlo |
 | TR-04 | Notificaciones | Canales separados por módulo (tareas, alarmas, entrenamiento, comidas, meditación, presupuesto) que se activan o silencian por separado |

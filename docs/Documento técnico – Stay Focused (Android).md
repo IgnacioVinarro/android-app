@@ -91,18 +91,18 @@ Cada área sigue la misma separación: `data` (entidades, DAO, repositorio), `do
 
 ### 4.2 Navegación
 
-Una sola actividad con un `NavHost` de Navigation Compose. La barra inferior tiene cinco destinos y los demás se abren desde ellos.
+Una sola actividad con un `NavHost` de Navigation Compose. La barra inferior tiene cinco destinos (Hoy, Finanzas, Gimnasio, Meditación y Tiempo de pantalla) y los demás se abren desde ellos. Dieta no es un destino propio: es una pestaña dentro de Gimnasio.
 
 | Destino | Tipo | Pantalla de entrada |
 | --- | --- | --- |
 | Hoy | Barra inferior | Línea de tiempo del día |
 | Finanzas | Barra inferior | Resumen financiero |
-| Gimnasio | Barra inferior | Rutinas y última sesión |
-| Dieta | Barra inferior | Diario del día |
+| Gimnasio | Barra inferior | Tab bar en el encabezado con dos pestañas: "Gimnasio" (por defecto: rutinas y última sesión) y "Dieta" |
+| Dieta | Pestaña dentro de Gimnasio | Diario del día |
 | Meditación | Barra inferior | Inicio de meditación |
 | Música y auriculares | Secundario | Mini reproductor en "Hoy" y pantalla propia |
-| Tiempo de pantalla | Secundario | Se abre desde el menú de "Hoy" |
-| Ajustes | Secundario | Se abre desde el menú de "Hoy" |
+| Tiempo de pantalla | Barra inferior (último) | Uso del teléfono (pantalla provisoria hasta la fase 4) |
+| Ajustes | Secundario | Se abre con un ícono de engranaje en "Hoy" (pantalla con flecha para volver) |
 
 Los bloques de la línea de tiempo abren su pantalla de destino mediante una ruta de texto guardada en el propio bloque (ver sección 6).
 

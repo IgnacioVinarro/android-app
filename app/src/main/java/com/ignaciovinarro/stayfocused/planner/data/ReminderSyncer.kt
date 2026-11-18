@@ -2,17 +2,14 @@ package com.ignaciovinarro.stayfocused.planner.data
 
 import androidx.room.ExperimentalRoomApi
 import com.ignaciovinarro.stayfocused.core.database.AppDatabase
+import com.ignaciovinarro.stayfocused.core.util.syncOnChange
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 import javax.inject.Singleton
 
 const val REMINDER_SYNC_DEBOUNCE_MS = 500L
@@ -32,13 +29,7 @@ class ReminderSyncer(
     private val reschedule: suspend () -> Unit,
     private val debounceMs: Long = REMINDER_SYNC_DEBOUNCE_MS
 ) {
-    @OptIn(FlowPreview::class)
-    fun start(scope: CoroutineScope) {
-        changes
-            .debounce(debounceMs)
-            .onEach { reschedule() }
-            .launchIn(scope)
-    }
+    fun start(scope: CoroutineScope) = syncOnChange(scope, changes, debounceMs) { reschedule() }
 }
 
 @Module
