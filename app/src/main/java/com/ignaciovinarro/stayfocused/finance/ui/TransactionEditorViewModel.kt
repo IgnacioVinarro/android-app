@@ -8,6 +8,7 @@ import com.ignaciovinarro.stayfocused.core.util.formatArsForInput
 import com.ignaciovinarro.stayfocused.core.util.parseArsToCents
 import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
 import com.ignaciovinarro.stayfocused.finance.data.AccountRepository
+import com.ignaciovinarro.stayfocused.finance.data.BudgetAlertChecker
 import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
 import com.ignaciovinarro.stayfocused.finance.data.TagEntity
@@ -77,7 +78,8 @@ class TransactionEditorViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     accountRepository: AccountRepository,
     categoryRepository: CategoryRepository,
-    private val tagRepository: TagRepository
+    private val tagRepository: TagRepository,
+    private val budgetAlertChecker: BudgetAlertChecker
 ) : ViewModel() {
 
     private val existingTransactionId: Long = savedStateHandle.get<Long>(ARG_TRANSACTION_ID) ?: 0L
@@ -199,6 +201,7 @@ class TransactionEditorViewModel @Inject constructor(
                     tagIds
                 )
             }
+            budgetAlertChecker.check() // puede haber cruzado el 80 % o el 100 % de un presupuesto
             onSaved()
         }
     }
@@ -207,6 +210,7 @@ class TransactionEditorViewModel @Inject constructor(
         val id = _uiState.value.transactionId ?: return
         viewModelScope.launch {
             transactionRepository.delete(id)
+            budgetAlertChecker.check() // baja el nivel registrado si el gasto bajó
             onDeleted()
         }
     }

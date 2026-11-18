@@ -17,6 +17,9 @@ object NotificationChannels {
     const val FOCUS = "focus"
     const val FOCUS_END = "focus_end"
 
+    // Avisos de presupuesto al llegar al 80 % y al 100 % (FI-06).
+    const val BUDGET = "budget"
+
     // Crear un canal que ya existe no hace nada, así que es seguro llamarlo en cada arranque.
     // minSdk 26 = los canales existen siempre, no hace falta chequear la versión.
     fun createAll(context: Context) {
@@ -48,6 +51,13 @@ object NotificationChannels {
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 600, 400, 600)
             }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                BUDGET,
+                context.getString(R.string.notification_channel_budget),
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = context.getString(R.string.notification_channel_budget_description) }
         )
         manager.createNotificationChannel(
             NotificationChannel(

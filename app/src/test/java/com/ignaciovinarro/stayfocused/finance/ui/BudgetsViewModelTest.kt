@@ -1,6 +1,7 @@
 package com.ignaciovinarro.stayfocused.finance.ui
 
 import app.cash.turbine.test
+import com.ignaciovinarro.stayfocused.finance.data.BudgetAlertChecker
 import com.ignaciovinarro.stayfocused.finance.data.BudgetEntity
 import com.ignaciovinarro.stayfocused.finance.data.BudgetRepository
 import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
@@ -35,6 +36,7 @@ class BudgetsViewModelTest {
     private val budgetRepository = mockk<BudgetRepository>(relaxed = true)
     private val categoryRepository = mockk<CategoryRepository>()
     private val transactionRepository = mockk<TransactionRepository>()
+    private val alertChecker = mockk<BudgetAlertChecker>(relaxed = true)
 
     private val month = YearMonth.now()
     private val comida = CategoryEntity(id = 10, name = "Comida", type = "EXPENSE", iconKey = "category_food", colorKey = "orange")
@@ -64,7 +66,7 @@ class BudgetsViewModelTest {
         every { budgetRepository.observeAll() } returns flowOf(budgets)
         every { categoryRepository.observeAll() } returns flowOf(listOf(comida, ocio, sueldo))
         every { transactionRepository.observeAll() } returns flowOf(transactions)
-        return BudgetsViewModel(budgetRepository, categoryRepository, transactionRepository)
+        return BudgetsViewModel(budgetRepository, categoryRepository, transactionRepository, alertChecker)
     }
 
     // Espera a que lleguen los datos y recién ahí corre el bloque, con el ViewModel suscripto.
@@ -147,6 +149,7 @@ class BudgetsViewModelTest {
             vm.onSaveDialog()
 
             coVerify { budgetRepository.setLimit(11L, month, 250_050L) }
+            coVerify { alertChecker.check(month) } // revisa si el nuevo límite ya está pasado
             assertNull(vm.uiState.value.dialog)
         }
     }

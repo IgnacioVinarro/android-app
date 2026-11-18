@@ -3,6 +3,7 @@ package com.ignaciovinarro.stayfocused.finance.ui
 import androidx.lifecycle.SavedStateHandle
 import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
 import com.ignaciovinarro.stayfocused.finance.data.AccountRepository
+import com.ignaciovinarro.stayfocused.finance.data.BudgetAlertChecker
 import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
 import com.ignaciovinarro.stayfocused.finance.data.TagEntity
@@ -13,6 +14,7 @@ import com.ignaciovinarro.stayfocused.finance.data.TransactionRepository
 import com.ignaciovinarro.stayfocused.finance.domain.TransactionType
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
@@ -39,6 +41,7 @@ class TransactionEditorViewModelTest {
     private val accountRepository = mockk<AccountRepository>()
     private val categoryRepository = mockk<CategoryRepository>()
     private val tagRepository = mockk<TagRepository>()
+    private val alertChecker = mockk<BudgetAlertChecker>(relaxed = true)
     private val dispatcher = StandardTestDispatcher()
 
     private val efectivo = AccountEntity(id = 1, name = "Efectivo", type = "CASH", iconKey = "i", colorKey = "green")
@@ -66,7 +69,7 @@ class TransactionEditorViewModelTest {
     private fun viewModel(transactionId: Long = 0L): TransactionEditorViewModel {
         val vm = TransactionEditorViewModel(
             SavedStateHandle(mapOf("transactionId" to transactionId)),
-            transactionRepository, accountRepository, categoryRepository, tagRepository
+            transactionRepository, accountRepository, categoryRepository, tagRepository, alertChecker
         )
         dispatcher.scheduler.advanceUntilIdle()
         return vm
@@ -267,6 +270,32 @@ class TransactionEditorViewModelTest {
 
         assertTrue(borrada)
         coVerify { transactionRepository.delete(7L) }
+        coVerify { alertChecker.check(any()) }
+    }
+
+    @Test
+    fun `al guardar se revisan los presupuestos despues de escribir`() = runTest(dispatcher) {
+        val vm = viewModel()
+        vm.onAmountChange("100")
+        vm.onCategoryChange(10L)
+
+        vm.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerifyOrder {
+            transactionRepository.create(any(), any())
+            alertChecker.check(any())
+        }
+    }
+
+    @Test
+    fun `un movimiento invalido no dispara la revision de presupuestos`() = runTest(dispatcher) {
+        val vm = viewModel()
+
+        vm.save {}
+        dispatcher.scheduler.advanceUntilIdle()
+
+        coVerify(exactly = 0) { alertChecker.check(any()) }
     }
 
     @Test

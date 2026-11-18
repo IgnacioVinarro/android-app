@@ -1,7 +1,7 @@
 # Ticket 0034 – Finanzas: pantalla de presupuestos (FI-06, parte 1)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Pantalla para ver y fijar el presupuesto del mes actual: un renglón "Total" y uno por cada categoría de

@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.ignaciovinarro.stayfocused.core.util.filterMoneyInput
 import com.ignaciovinarro.stayfocused.core.util.formatArsForInput
 import com.ignaciovinarro.stayfocused.core.util.parseArsToCents
+import com.ignaciovinarro.stayfocused.finance.data.BudgetAlertChecker
 import com.ignaciovinarro.stayfocused.finance.data.BudgetRepository
 import com.ignaciovinarro.stayfocused.finance.data.CategoryRepository
 import com.ignaciovinarro.stayfocused.finance.data.TransactionRepository
@@ -57,7 +58,8 @@ data class BudgetsUiState(
 class BudgetsViewModel @Inject constructor(
     private val budgetRepository: BudgetRepository,
     categoryRepository: CategoryRepository,
-    transactionRepository: TransactionRepository
+    transactionRepository: TransactionRepository,
+    private val budgetAlertChecker: BudgetAlertChecker
 ) : ViewModel() {
 
     // Por ahora solo el mes actual (ticket 0034).
@@ -111,6 +113,7 @@ class BudgetsViewModel @Inject constructor(
         val cents = state.amountCents?.takeIf { it > 0 } ?: return
         viewModelScope.launch {
             budgetRepository.setLimit(state.categoryId, month, cents)
+            budgetAlertChecker.check(month) // un límite menor a lo gastado puede ya estar pasado
             dialog.value = null
         }
     }

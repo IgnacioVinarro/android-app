@@ -1,7 +1,7 @@
 # Ticket 0035 – Finanzas: estadísticas y resumen del mes (FI-08 parcial, FI-10)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Pantalla "Estadísticas" (se abre desde el menú de Finanzas) para el **mes actual**:

@@ -367,4 +367,12 @@
     <string name="a11y_statistics_summary_row">%1$s: %2$s. %3$s</string>
     <string name="a11y_statistics_category_row">%1$s: %2$s, %3$d %% del gasto del mes</string>
     <string name="a11y_statistics_chart">Gasto por mes: %1$s</string>
+
+    <!-- Finanzas: avisos de presupuesto (ticket 0036) -->
+    <string name="notification_channel_budget">Presupuesto</string>
+    <string name="notification_channel_budget_description">Avisos al llegar al 80 % y al 100 % de un presupuesto mensual</string>
+    <string name="budget_notification_title_total">Presupuesto total del mes</string>
+    <string name="budget_notification_title_category">Presupuesto de %1$s</string>
+    <string name="budget_notification_text_warning">Llegaste al 80 % de lo presupuestado este mes.</string>
+    <string name="budget_notification_text_reached">Llegaste al 100 % de lo presupuestado este mes.</string>
 </resources>
