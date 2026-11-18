@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 // Clase abstracta (no interfaz) porque Room solo permite @Transaction con cuerpo en clases abstractas.
 @Dao
-abstract class RoutineDao {
+abstract class WorkoutRoutineDao {
 
     @Insert
     abstract suspend fun insert(routine: WorkoutRoutineEntity): Long

@@ -18,6 +18,16 @@ import com.ignaciovinarro.stayfocused.finance.data.TransactionDao
 import com.ignaciovinarro.stayfocused.finance.data.TransactionEntity
 import com.ignaciovinarro.stayfocused.finance.data.TransactionTagDao
 import com.ignaciovinarro.stayfocused.finance.data.TransactionTagEntity
+import com.ignaciovinarro.stayfocused.gym.data.ExerciseDao
+import com.ignaciovinarro.stayfocused.gym.data.ExerciseEntity
+import com.ignaciovinarro.stayfocused.gym.data.PersonalRecordEntity
+import com.ignaciovinarro.stayfocused.gym.data.RoutineExerciseEntity
+import com.ignaciovinarro.stayfocused.gym.data.SessionDao
+import com.ignaciovinarro.stayfocused.gym.data.SessionExerciseNoteEntity
+import com.ignaciovinarro.stayfocused.gym.data.SessionSetEntity
+import com.ignaciovinarro.stayfocused.gym.data.WorkoutRoutineDao
+import com.ignaciovinarro.stayfocused.gym.data.WorkoutRoutineEntity
+import com.ignaciovinarro.stayfocused.gym.data.WorkoutSessionEntity
 import com.ignaciovinarro.stayfocused.planner.data.ReminderDao
 import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionDao
@@ -55,9 +65,16 @@ private const val DATABASE_NAME = "stayfocused.db"
         TransactionEntity::class,
         BudgetEntity::class,
         TagEntity::class,
-        TransactionTagEntity::class
+        TransactionTagEntity::class,
+        ExerciseEntity::class,
+        WorkoutRoutineEntity::class,
+        RoutineExerciseEntity::class,
+        WorkoutSessionEntity::class,
+        SessionExerciseNoteEntity::class,
+        SessionSetEntity::class,
+        PersonalRecordEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -76,6 +93,9 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun tagDao(): TagDao
     abstract fun transactionTagDao(): TransactionTagDao
+    abstract fun exerciseDao(): ExerciseDao
+    abstract fun workoutRoutineDao(): WorkoutRoutineDao
+    abstract fun sessionDao(): SessionDao
 }
 
 @Module
@@ -86,7 +106,7 @@ object DatabaseModule {
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
             .build()
 
     @Provides
@@ -130,4 +150,13 @@ object DatabaseModule {
 
     @Provides
     fun provideTransactionTagDao(database: AppDatabase): TransactionTagDao = database.transactionTagDao()
+
+    @Provides
+    fun provideExerciseDao(database: AppDatabase): ExerciseDao = database.exerciseDao()
+
+    @Provides
+    fun provideWorkoutRoutineDao(database: AppDatabase): WorkoutRoutineDao = database.workoutRoutineDao()
+
+    @Provides
+    fun provideSessionDao(database: AppDatabase): SessionDao = database.sessionDao()
 }

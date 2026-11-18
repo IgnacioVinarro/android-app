@@ -1,7 +1,7 @@
 # Ticket 0037 – Gimnasio: datos + reglas de dominio (GY-01…03, 05, 06, 09, 12, 16, 17 base)
 
 ## Estado
-En progreso
+En revisión
 
 ## Descripción
 Primer paso del módulo Gimnasio (Fase 2), igual que 0028 en Finanzas: tablas, repositorios y reglas
@@ -19,20 +19,29 @@ puras. **Sin pantallas, sin ViewModels, sin navegación** (el destino "Gimnasio"
    (normal, fallo y descendente cuentan; CLAUDE.md solo excluye el calentamiento).
 3. Récord "mayor volumen" = volumen total del ejercicio **en una sesión** (suma de series válidas).
 4. 1RM estimado en gramos enteros (Epley, redondeo half-up); solo para ejercicios con peso y reps.
-5. Se agregan `restSeconds` (GY-07) y `link` (GY-02) a `exercise`, y `durationSeconds` a `session_set`
+5. Se agregan `weight` a `personal_record` (peso del récord de repeticiones), `restSeconds` (GY-07) y `link` (GY-02) a `exercise`, y `durationSeconds` a `session_set`
    (ejercicios de tipo tiempo), que el documento técnico no lista.
 6. Sin claves foráneas de Room (igual que Finanzas): solo índices; el borrado lógico no cascadea solo.
 
 **Fuera de alcance:** pantallas, línea de tiempo (GY-04), temporizador de descanso (GY-07), mapa del
 cuerpo (GY-18), gráficos (GY-11), respaldo JSON de Gimnasio (ticket aparte, como 0030).
 
+**Nombres:** los de Gimnasio que chocaban con Planificación se llaman `WorkoutRoutineDao` y
+`WorkoutRoutineRepository`.
+
 ## Checklist de cambios
-- [ ] `gym/domain`: tipos (grupo muscular, equipo, tipo de registro, tipo de serie, estado, tipo de récord)
-- [ ] `gym/domain`: volumen de serie/ejercicio/sesión, 1RM Epley, detección de récords, volumen por grupo (puras) + pruebas
-- [ ] `gym/domain`: validación de serie por tipo de registro (pura) + pruebas
-- [ ] `gym/data`: entidades `exercise`, `workout_routine`, `routine_exercise`, `workout_session`, `session_exercise_note`, `session_set`, `personal_record`
-- [ ] `gym/data`: DAOs (todo con `status = 0`, borrado lógico)
-- [ ] `gym/data`: `ExerciseRepository`, `RoutineRepository`, `SessionRepository` (+ módulo Hilt) + pruebas con MockK
-- [ ] Biblioteca precargada (`ExerciseSeeder`) y textos; sembrado desde `StayFocusedApplication` + prueba
-- [ ] `AppDatabase` versión 9, `MIGRATION_8_9` escrita **y probada** (instrumentada), esquema 9 exportado
-- [ ] Compilar, `test` y `lint`
+- [x] `gym/domain`: tipos (grupo muscular, equipo, tipo de registro, tipo de serie, estado, tipo de récord)
+- [x] `gym/domain`: volumen de serie/ejercicio/sesión, 1RM Epley, detección de récords, volumen por grupo (puras) + pruebas
+- [x] `gym/domain`: validación de serie por tipo de registro (pura) + pruebas
+- [x] `gym/data`: entidades `exercise`, `workout_routine`, `routine_exercise`, `workout_session`, `session_exercise_note`, `session_set`, `personal_record`
+- [x] `gym/data`: DAOs (todo con `status = 0`, borrado lógico)
+- [x] `gym/data`: `ExerciseRepository`, `RoutineRepository`, `SessionRepository` (+ módulo Hilt) + pruebas con MockK
+- [x] Biblioteca precargada (`ExerciseSeeder`) y textos; sembrado desde `StayFocusedApplication` + prueba
+- [x] `AppDatabase` versión 9, `MIGRATION_8_9` escrita **y probada** (instrumentada), esquema 9 exportado
+- [x] Compilar, `test` y `lint`
+
+## Notas
+- Corrieron en verde: `assembleDebug`, `assembleDebugAndroidTest`, `test` (35 pruebas nuevas de Gimnasio) y `lint`.
+- **No se corrieron** las pruebas instrumentadas (`GymDaoTest`, `MigrationTest.migrarDe8a9…`): sin emulador/`adb`
+  en este entorno. Compilan y quedan para correr en emulador/teléfono.
+- Hasta el ticket de respaldo, el JSON no incluye las tablas de Gimnasio.

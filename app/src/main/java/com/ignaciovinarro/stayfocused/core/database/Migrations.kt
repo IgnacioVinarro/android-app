@@ -299,3 +299,150 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_tag_tagId` ON `transaction_tag` (`tagId`)")
     }
 }
+
+// Versión 9: tablas de Gimnasio (ticket 0037). Solo crea tablas nuevas; no toca las existentes.
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `exercise` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `muscleGroup` TEXT NOT NULL,
+                `equipment` TEXT NOT NULL,
+                `trackingType` TEXT NOT NULL,
+                `isCustom` INTEGER NOT NULL,
+                `notes` TEXT,
+                `link` TEXT,
+                `restSeconds` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_exercise_uuid` ON `exercise` (`uuid`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `workout_routine` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `scheduleDays` INTEGER NOT NULL,
+                `startMinutes` INTEGER,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_routine_uuid` ON `workout_routine` (`uuid`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `routine_exercise` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `routineId` INTEGER NOT NULL,
+                `exerciseId` INTEGER NOT NULL,
+                `position` INTEGER NOT NULL,
+                `targetSets` INTEGER NOT NULL,
+                `targetReps` INTEGER NOT NULL,
+                `targetWeight` INTEGER NOT NULL,
+                `supersetGroup` INTEGER,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_routine_exercise_uuid` ON `routine_exercise` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_exercise_routineId` ON `routine_exercise` (`routineId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_routine_exercise_exerciseId` ON `routine_exercise` (`exerciseId`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `workout_session` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `routineId` INTEGER,
+                `date` INTEGER NOT NULL,
+                `startedAt` INTEGER NOT NULL,
+                `endedAt` INTEGER,
+                `state` TEXT NOT NULL,
+                `notes` TEXT,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_workout_session_uuid` ON `workout_session` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_session_routineId` ON `workout_session` (`routineId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_workout_session_date` ON `workout_session` (`date`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `session_exercise_note` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `sessionId` INTEGER NOT NULL,
+                `exerciseId` INTEGER NOT NULL,
+                `note` TEXT NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_session_exercise_note_uuid` ON `session_exercise_note` (`uuid`)")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_session_exercise_note_sessionId_exerciseId` ON `session_exercise_note` (`sessionId`, `exerciseId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_exercise_note_exerciseId` ON `session_exercise_note` (`exerciseId`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `session_set` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `sessionId` INTEGER NOT NULL,
+                `exerciseId` INTEGER NOT NULL,
+                `position` INTEGER NOT NULL,
+                `weight` INTEGER NOT NULL,
+                `reps` INTEGER NOT NULL,
+                `durationSeconds` INTEGER NOT NULL,
+                `type` TEXT NOT NULL,
+                `completed` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_session_set_uuid` ON `session_set` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_set_sessionId` ON `session_set` (`sessionId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_session_set_exerciseId` ON `session_set` (`exerciseId`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `personal_record` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `exerciseId` INTEGER NOT NULL,
+                `kind` TEXT NOT NULL,
+                `value` INTEGER NOT NULL,
+                `weight` INTEGER NOT NULL,
+                `sessionSetId` INTEGER NOT NULL,
+                `achievedAt` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_personal_record_uuid` ON `personal_record` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_personal_record_exerciseId_kind` ON `personal_record` (`exerciseId`, `kind`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_personal_record_sessionSetId` ON `personal_record` (`sessionSetId`)")
+    }
+}

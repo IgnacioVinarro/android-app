@@ -9,15 +9,15 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object RoutineModule {
+object WorkoutRoutineModule {
 
     @Provides
     @Singleton
-    fun provideRoutineRepository(routineDao: RoutineDao): RoutineRepository =
-        RoutineRepositoryImpl(routineDao)
+    fun provideWorkoutRoutineRepository(routineDao: WorkoutRoutineDao): WorkoutRoutineRepository =
+        WorkoutRoutineRepositoryImpl(routineDao)
 }
 
-interface RoutineRepository {
+interface WorkoutRoutineRepository {
     fun observeAll(): Flow<List<WorkoutRoutineEntity>>
     fun observeItems(routineId: Long): Flow<List<RoutineExerciseEntity>>
     suspend fun getById(id: Long): WorkoutRoutineEntity?
@@ -33,9 +33,9 @@ interface RoutineRepository {
     suspend fun delete(id: Long)
 }
 
-class RoutineRepositoryImpl(
-    private val routineDao: RoutineDao
-) : RoutineRepository {
+class WorkoutRoutineRepositoryImpl(
+    private val routineDao: WorkoutRoutineDao
+) : WorkoutRoutineRepository {
 
     override fun observeAll(): Flow<List<WorkoutRoutineEntity>> = routineDao.observeAll()
 

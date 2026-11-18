@@ -235,4 +235,43 @@ class MigrationTest {
         assertThat(transacciones.getLong(transacciones.getColumnIndexOrThrow("amount"))).isEqualTo(1000L)
         transacciones.close()
     }
+
+    @Test
+    fun migrarDe8a9_conservaLosDatosYCreaLasTablasDeGimnasio() {
+        helper.createDatabase(TEST_DB, 8).apply {
+            execSQL(
+                "INSERT INTO task (id, uuid, title, date, startMinutes, durationMinutes, " +
+                    "iconKey, colorKey, status, createdAt, updatedAt) VALUES " +
+                    "(1, 'uuid-1', 'Tarea vieja', 19000, 540, 30, 'task_default', 'blue', 0, 1, 1)"
+            )
+            close()
+        }
+
+        val migrada = helper.runMigrationsAndValidate(TEST_DB, 9, true, MIGRATION_8_9)
+
+        val tareas = migrada.query("SELECT * FROM task WHERE id = 1")
+        assertThat(tareas.moveToFirst()).isTrue()
+        assertThat(tareas.getString(tareas.getColumnIndexOrThrow("title"))).isEqualTo("Tarea vieja")
+        tareas.close()
+
+        listOf(
+            "exercise", "workout_routine", "routine_exercise", "workout_session",
+            "session_exercise_note", "session_set", "personal_record"
+        ).forEach { tabla ->
+            val tablas = migrada.query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$tabla'")
+            assertThat(tablas.moveToFirst()).isTrue()
+            tablas.close()
+        }
+
+        // Las tablas nuevas aceptan filas; los campos opcionales pueden ser nulos.
+        migrada.execSQL(
+            "INSERT INTO workout_session (id, uuid, routineId, date, startedAt, endedAt, state, notes, " +
+                "status, createdAt, updatedAt) VALUES (1, 'uuid-s-1', NULL, 19000, 1, NULL, 'IN_PROGRESS', NULL, 0, 1, 1)"
+        )
+        val sesiones = migrada.query("SELECT * FROM workout_session WHERE id = 1")
+        assertThat(sesiones.moveToFirst()).isTrue()
+        assertThat(sesiones.isNull(sesiones.getColumnIndexOrThrow("routineId"))).isTrue()
+        assertThat(sesiones.getString(sesiones.getColumnIndexOrThrow("state"))).isEqualTo("IN_PROGRESS")
+        sesiones.close()
+    }
 }
