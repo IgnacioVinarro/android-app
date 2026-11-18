@@ -43,6 +43,16 @@ interface TaskDao {
     )
     fun observeByDate(date: Long): Flow<List<TaskEntity>>
 
+    // Para la vista semanal (PL-12): tareas simples dentro del rango y todas las recurrentes ya iniciadas
+    // al final del rango (`occursOn` decide después en qué días cae cada una).
+    @Query(
+        "SELECT * FROM task WHERE status = 0 AND (" +
+            "(recurrenceType IS NULL AND date BETWEEN :startDate AND :endDate) OR " +
+            "(recurrenceType IS NOT NULL AND date <= :endDate)" +
+            ") ORDER BY date, startMinutes IS NULL, startMinutes"
+    )
+    fun observeForRange(startDate: Long, endDate: Long): Flow<List<TaskEntity>>
+
     @Query(
         "SELECT * FROM task WHERE status = 0 AND date BETWEEN :startDate AND :endDate " +
             "ORDER BY date, startMinutes IS NULL, startMinutes"

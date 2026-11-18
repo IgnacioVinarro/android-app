@@ -11,27 +11,38 @@ import com.ignaciovinarro.stayfocused.core.timeline.clampStartMinutes
 import com.ignaciovinarro.stayfocused.core.timeline.snapToGrid
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
 import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionEntity
+import com.ignaciovinarro.stayfocused.planner.data.SubtaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceEntity
 import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
+import com.ignaciovinarro.stayfocused.planner.domain.DayLoad
 import com.ignaciovinarro.stayfocused.planner.domain.DayProgress
 import com.ignaciovinarro.stayfocused.planner.domain.SubtaskItem
 import com.ignaciovinarro.stayfocused.planner.domain.TIMELINE_SOURCE_PLANNER
+import com.ignaciovinarro.stayfocused.planner.domain.buildWeekLoad
 import com.ignaciovinarro.stayfocused.planner.domain.dayProgress
 import com.ignaciovinarro.stayfocused.planner.domain.moveToInbox
+import com.ignaciovinarro.stayfocused.planner.domain.occursOn
 import com.ignaciovinarro.stayfocused.planner.domain.rescheduleOverdueTask
 import com.ignaciovinarro.stayfocused.planner.domain.subtaskItemsFor
+import com.ignaciovinarro.stayfocused.planner.domain.weekStartOf
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -45,6 +56,10 @@ data class PartsCount(val done: Int, val total: Int)
 data class SubtaskSheet(val title: String, val items: List<SubtaskItem>)
 
 data class TodayUiState(
+    // Día que se está viendo (PL-12) y la carga de su semana (lunes a domingo).
+    val selectedDate: LocalDate = LocalDate.now(),
+    val isToday: Boolean = true,
+    val weekLoad: List<DayLoad> = emptyList(),
     val positionedBlocks: List<PositionedTimelineBlock> = emptyList(),
     val nowMinutes: Int = minuteOfDay(LocalTime.now()),
     val inboxTasks: List<TaskEntity> = emptyList(),
@@ -62,6 +77,22 @@ private data class SheetTarget(val taskId: Long, val title: String, val recurrin
 
 internal fun minuteOfDay(time: LocalTime): Int = time.hour * 60 + time.minute
 
+// Lo que cambia al elegir otro día: sus bloques, sus tareas y los tildes de subtareas de ese día.
+private data class DayData(
+    val date: LocalDate,
+    val blocks: List<TimelineBlock>,
+    val tasks: List<TaskEntity>,
+    val completions: List<SubtaskCompletionEntity>
+)
+
+// Lo que no depende del día elegido: todas las subtareas, las atrasadas (contra el hoy real) y la hora.
+private data class Support(
+    val subtasks: List<SubtaskEntity>,
+    val overdue: List<TaskEntity>,
+    val nowMinutes: Int
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class TodayViewModel @Inject constructor(
     private val timelineRepository: TimelineRepository,
@@ -72,28 +103,52 @@ class TodayViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val today = LocalDate.now()
+    private val selectedDate = MutableStateFlow(today)
     private val sheetTarget = MutableStateFlow<SheetTarget?>(null)
 
-    // Subtareas activas, tildes de hoy y tareas atrasadas, juntos para no pasar de 5 flujos en el
-    // combine principal.
-    private val daySupport = combine(
+    private val dayData = selectedDate.flatMapLatest { date ->
+        val epochDay = date.toEpochDay()
+        combine(
+            timelineRepository.blocksFor(date),
+            taskRepository.observeByDate(epochDay),
+            subtaskRepository.observeCompletions(epochDay)
+        ) { blocks, tasks, completions -> DayData(date, blocks, tasks, completions) }
+    }
+
+    private val support = combine(
         subtaskRepository.observeAll(),
-        subtaskRepository.observeCompletions(today.toEpochDay()),
-        taskRepository.observeOverdue(today.toEpochDay())
-    ) { subtasks, completions, overdue -> Triple(subtasks, completions, overdue) }
+        taskRepository.observeOverdue(today.toEpochDay()),
+        nowTicker()
+    ) { subtasks, overdue, nowMinutes -> Support(subtasks, overdue, nowMinutes) }
+
+    // Carga de la semana del día elegido (PL-12). Solo se vuelve a armar al cambiar de semana o de datos.
+    private val weekLoad = selectedDate
+        .map { weekStartOf(it) }
+        .distinctUntilChanged()
+        .flatMapLatest { weekStart ->
+            val startDay = weekStart.toEpochDay()
+            val endDay = weekStart.plusDays(6).toEpochDay()
+            combine(
+                taskRepository.observeForRange(startDay, endDay),
+                taskOccurrenceRepository.observeByDateRange(startDay, endDay)
+            ) { tasks, occurrences -> buildWeekLoad(weekStart, tasks, occurrences) }
+        }
 
     val uiState: StateFlow<TodayUiState> = combine(
-        timelineRepository.blocksFor(today),
-        nowTicker(),
-        taskRepository.observeByDate(today.toEpochDay()),
-        daySupport,
-        sheetTarget
-    ) { blocks, nowMinutes, tasks, (subtasks, completions, overdue), target ->
-        val inbox = tasks.filter { it.startMinutes == null }
-        val inboxItems = inbox.associate { task ->
-            task.id to subtaskItemsFor(task.id, task.recurrenceType != null, today, subtasks, completions)
+        dayData,
+        support,
+        sheetTarget,
+        weekLoad
+    ) { day, (subtasks, overdue, nowMinutes), target, week ->
+        val date = day.date
+        // Las recurrentes sin hora solo van a la bandeja los días que les toca.
+        val inbox = day.tasks.filter {
+            it.startMinutes == null && (it.recurrenceType == null || occursOn(it, date))
         }
-        val plannerBlocks = blocks.filter { it.source == TIMELINE_SOURCE_PLANNER }
+        val inboxItems = inbox.associate { task ->
+            task.id to subtaskItemsFor(task.id, task.recurrenceType != null, date, subtasks, day.completions)
+        }
+        val plannerBlocks = day.blocks.filter { it.source == TIMELINE_SOURCE_PLANNER }
 
         // Progreso del día: tareas (bloques de Planificación + bandeja) y sus subtareas.
         val progress = dayProgress(
@@ -104,7 +159,10 @@ class TodayViewModel @Inject constructor(
         )
 
         TodayUiState(
-            positionedBlocks = OverlapArranger.arrange(blocks),
+            selectedDate = date,
+            isToday = date == today,
+            weekLoad = week,
+            positionedBlocks = OverlapArranger.arrange(day.blocks),
             nowMinutes = nowMinutes,
             inboxTasks = inbox,
             inboxParts = inboxItems
@@ -112,7 +170,7 @@ class TodayViewModel @Inject constructor(
                 .mapValues { (_, items) -> PartsCount(done = items.count { it.done }, total = items.size) },
             progress = progress,
             subtaskSheet = target?.let {
-                SubtaskSheet(it.title, subtaskItemsFor(it.taskId, it.recurring, today, subtasks, completions))
+                SubtaskSheet(it.title, subtaskItemsFor(it.taskId, it.recurring, date, subtasks, day.completions))
             },
             overdueTasks = overdue
         )
@@ -121,6 +179,24 @@ class TodayViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = TodayUiState()
     )
+
+    // Navegación por día (PL-12). Al cambiar de día se cierra la hoja de subtareas: era de otro día.
+    fun onSelectDay(date: LocalDate) {
+        sheetTarget.value = null
+        selectedDate.value = date
+    }
+
+    // Las flechas mueven una semana entera y conservan el día de la semana elegido.
+    fun onPreviousWeek() = shiftSelectedDate(-1)
+
+    fun onNextWeek() = shiftSelectedDate(1)
+
+    fun onGoToToday() = onSelectDay(today)
+
+    private fun shiftSelectedDate(weeks: Long) {
+        sheetTarget.value = null
+        selectedDate.update { it.plusWeeks(weeks) }
+    }
 
     // Desde la línea de tiempo solo se completan las tareas; los demás módulos se completan
     // en su propia pantalla. Completar una ocurrencia de una tarea recurrente no completa las
@@ -172,13 +248,13 @@ class TodayViewModel @Inject constructor(
         sheetTarget.value = null
     }
 
-    // Tarea simple: el tilde va en la subtarea. Recurrente: va por ocurrencia (solo hoy). El estado
+    // Tarea simple: el tilde va en la subtarea. Recurrente: va por ocurrencia (solo el día elegido). El estado
     // de la tarea no cambia: tarea y subtareas son independientes (ticket 0016).
     fun onToggleSubtask(item: SubtaskItem) {
         val target = sheetTarget.value ?: return
         viewModelScope.launch {
             if (target.recurring) {
-                subtaskRepository.setDoneOn(item.id, today.toEpochDay(), !item.done)
+                subtaskRepository.setDoneOn(item.id, selectedDate.value.toEpochDay(), !item.done)
             } else {
                 subtaskRepository.setDone(item.id, !item.done)
             }

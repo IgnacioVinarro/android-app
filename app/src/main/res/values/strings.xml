@@ -131,6 +131,23 @@
         <item quantity="one">%d atrasada</item>
         <item quantity="other">%d atrasadas</item>
     </plurals>
+
+    <!-- Vista semanal (PL-12) -->
+    <string name="week_previous">Semana anterior</string>
+    <string name="week_next">Semana siguiente</string>
+    <string name="week_go_today">Hoy</string>
+    <string name="week_today_marker">hoy</string>
+    <string name="week_selected_marker">seleccionado</string>
+    <plurals name="week_task_count">
+        <item quantity="one">%d tarea</item>
+        <item quantity="other">%d tareas</item>
+    </plurals>
+    <string name="week_load_summary">%1$s · %2$s</string>
+    <string name="week_load_empty">Sin tareas</string>
+    <string name="week_duration_minutes">%d min</string>
+    <string name="week_duration_hours">%d h</string>
+    <string name="week_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="a11y_week_day">%1$s, %2$s</string>
     <string name="overdue_sheet_title">Tareas atrasadas</string>
     <string name="overdue_original_date">Era para el %1$s</string>
     <string name="overdue_action_reschedule">Reprogramar</string>

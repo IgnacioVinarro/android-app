@@ -43,6 +43,16 @@ class TaskRepositoryImplTest {
     }
 
     @Test
+    fun `observeForRange delega en el DAO`() = runBlocking {
+        val tareas = listOf(tarea())
+        every { dao.observeForRange(19000L, 19006L) } returns flowOf(tareas)
+
+        val resultado = repository.observeForRange(19000L, 19006L)
+
+        assertEquals(tareas, resultado.first())
+    }
+
+    @Test
     fun `create delega el insert en el DAO`() = runBlocking {
         val tarea = tarea()
         coEvery { dao.insert(tarea) } returns 7L

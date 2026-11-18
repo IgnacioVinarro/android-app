@@ -115,6 +115,17 @@ fun TodayScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
+            // Vista semanal (PL-12): elegir el día que se ve abajo y ver la carga de la semana.
+            WeekStrip(
+                week = uiState.weekLoad,
+                selectedDate = uiState.selectedDate,
+                today = LocalDate.now(),
+                onSelectDay = viewModel::onSelectDay,
+                onPreviousWeek = viewModel::onPreviousWeek,
+                onNextWeek = viewModel::onNextWeek,
+                onGoToToday = viewModel::onGoToToday
+            )
+
             // Tareas atrasadas (PL-14): solo si hay.
             if (uiState.overdueTasks.isNotEmpty()) {
                 OverdueNotice(count = uiState.overdueTasks.size, onClick = { showOverdue = true })
@@ -161,7 +172,8 @@ fun TodayScreen(
                             onResizeTask = viewModel::onResizeTask,
                             onEditTask = onEditTask
                         )
-                        NowMarker(nowMinutes = uiState.nowMinutes)
+                        // La línea de "ahora" solo tiene sentido en el día de hoy.
+                        if (uiState.isToday) NowMarker(nowMinutes = uiState.nowMinutes)
                     }
                 }
             }

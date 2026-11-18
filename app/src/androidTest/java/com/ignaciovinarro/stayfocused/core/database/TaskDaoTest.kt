@@ -150,6 +150,38 @@ class TaskDaoTest {
     }
 
     @Test
+    fun rangoSemanal_traeSimplesDelRangoYRecurrentesYaIniciadas() {
+        runBlocking {
+            dao.insert(tarea(title = "Antes del rango", date = 18999L))
+            dao.insert(tarea(title = "Primer dia", date = 19000L))
+            dao.insert(tarea(title = "Ultimo dia", date = 19006L))
+            dao.insert(tarea(title = "Despues del rango", date = 19007L))
+            dao.insert(tarea(title = "Recurrente vieja", date = 18000L, recurrenceType = "DAILY"))
+            dao.insert(tarea(title = "Recurrente que empieza en el rango", date = 19003L, recurrenceType = "DAILY"))
+            dao.insert(tarea(title = "Recurrente futura", date = 19007L, recurrenceType = "DAILY"))
+
+            val tareas = dao.observeForRange(19000L, 19006L).first()
+
+            assertThat(tareas.map { it.title }).containsExactly(
+                "Recurrente vieja", "Primer dia", "Recurrente que empieza en el rango", "Ultimo dia"
+            )
+        }
+    }
+
+    @Test
+    fun rangoSemanal_noTraeLasBorradasLogicamente() {
+        runBlocking {
+            val id = dao.insert(tarea(title = "Borrada", date = 19001L))
+            dao.insert(tarea(title = "Queda", date = 19001L))
+            dao.softDelete(id, updatedAt = 5L)
+
+            val tareas = dao.observeForRange(19000L, 19006L).first()
+
+            assertThat(tareas.map { it.title }).containsExactly("Queda")
+        }
+    }
+
+    @Test
     fun atrasadas_noTraeLasBorradasLogicamente() {
         runBlocking {
             val id = dao.insert(tarea(title = "Borrada", date = 18999L))

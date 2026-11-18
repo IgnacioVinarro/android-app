@@ -13,11 +13,13 @@ import com.ignaciovinarro.stayfocused.planner.data.TaskOccurrenceRepository
 import com.ignaciovinarro.stayfocused.planner.data.TaskRepository
 import com.ignaciovinarro.stayfocused.planner.domain.RecurrenceType
 import com.ignaciovinarro.stayfocused.planner.domain.TIMELINE_SOURCE_PLANNER
+import com.ignaciovinarro.stayfocused.planner.domain.weekStartOf
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
+import io.mockk.verify
 import java.time.LocalDate
 import java.time.LocalTime
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +53,8 @@ class TodayViewModelTest {
         every { subtaskRepository.observeAll() } returns flowOf(emptyList())
         every { subtaskRepository.observeCompletions(any()) } returns flowOf(emptyList())
         every { taskRepository.observeOverdue(any()) } returns flowOf(emptyList())
+        every { taskRepository.observeForRange(any(), any()) } returns flowOf(emptyList())
+        every { taskOccurrenceRepository.observeByDateRange(any(), any()) } returns flowOf(emptyList())
     }
 
     private fun crearViewModel() =
@@ -646,5 +650,191 @@ class TodayViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         coVerify(exactly = 0) { reminderRepository.deleteByOwner(any(), any()) }
+    }
+
+    // --- Vista semanal y navegacion por dia (PL-12, ticket 0018) ---
+
+    @Test
+    fun `al empezar se ve hoy y su semana de lunes a domingo`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            val estado = awaitItem()
+            val hoy = LocalDate.now()
+            assertEquals(hoy, estado.selectedDate)
+            assertEquals(true, estado.isToday)
+            assertEquals(weekStartOf(hoy), estado.weekLoad.first().date)
+            assertEquals(7, estado.weekLoad.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `la carga semanal sale de las tareas del rango`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val hoy = LocalDate.now()
+        every { taskRepository.observeForRange(any(), any()) } returns flowOf(
+            listOf(tareaSimpleHoy(id = 1), tareaSimpleHoy(id = 2, startMinutes = null))
+        )
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            val carga = awaitItem().weekLoad.first { it.date == hoy }
+            assertEquals(2, carga.taskCount)
+            assertEquals(30, carga.plannedMinutes)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `elegir un dia pide los bloques y la bandeja de ese dia`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val manana = LocalDate.now().plusDays(1)
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onSelectDay(manana)
+            dispatcher.scheduler.runCurrent()
+            val estado = expectMostRecentItem()
+            assertEquals(manana, estado.selectedDate)
+            assertEquals(false, estado.isToday)
+            cancelAndIgnoreRemainingEvents()
+        }
+        verify { timelineRepository.blocksFor(manana) }
+        verify { taskRepository.observeByDate(manana.toEpochDay()) }
+    }
+
+    @Test
+    fun `semana siguiente y anterior conservan el dia de la semana`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val hoy = LocalDate.now()
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onNextWeek()
+            dispatcher.scheduler.runCurrent()
+            assertEquals(hoy.plusWeeks(1), expectMostRecentItem().selectedDate)
+            viewModel.onPreviousWeek()
+            viewModel.onPreviousWeek()
+            dispatcher.scheduler.runCurrent()
+            assertEquals(hoy.minusWeeks(1), expectMostRecentItem().selectedDate)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `cambiar de semana pide la carga de la semana nueva`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val siguiente = weekStartOf(LocalDate.now()).plusWeeks(1)
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onNextWeek()
+            dispatcher.scheduler.runCurrent()
+            assertEquals(siguiente, expectMostRecentItem().weekLoad.first().date)
+            cancelAndIgnoreRemainingEvents()
+        }
+        verify { taskRepository.observeForRange(siguiente.toEpochDay(), siguiente.plusDays(6).toEpochDay()) }
+    }
+
+    @Test
+    fun `volver a hoy deja el dia de hoy elegido`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onSelectDay(LocalDate.now().plusDays(3))
+            dispatcher.scheduler.runCurrent()
+            viewModel.onGoToToday()
+            dispatcher.scheduler.runCurrent()
+            val estado = expectMostRecentItem()
+            assertEquals(LocalDate.now(), estado.selectedDate)
+            assertEquals(true, estado.isToday)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `una recurrente sin hora solo va a la bandeja los dias que le tocan`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val hoy = LocalDate.now()
+        // Semanal desde hoy: le toca hoy y dentro de 7 dias, no mañana.
+        val semanal = tareaSimpleHoy(id = 1, startMinutes = null).copy(recurrenceType = RecurrenceType.WEEKLY.name)
+        every { taskRepository.observeByDate(any()) } returns flowOf(listOf(semanal))
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            assertEquals(listOf(1L), awaitItem().inboxTasks.map { it.id })
+            viewModel.onSelectDay(hoy.plusDays(1))
+            dispatcher.scheduler.runCurrent()
+            assertEquals(emptyList<Long>(), expectMostRecentItem().inboxTasks.map { it.id })
+            viewModel.onSelectDay(hoy.plusDays(7))
+            dispatcher.scheduler.runCurrent()
+            assertEquals(listOf(1L), expectMostRecentItem().inboxTasks.map { it.id })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `tildar una subtarea recurrente en otro dia la guarda en ese dia`() = runTest(dispatcher) {
+        val manana = LocalDate.now().plusDays(1)
+        every { timelineRepository.blocksFor(any()) } returns flowOf(
+            listOf(bloqueConPartes(partsTotal = 1).copy(date = manana))
+        )
+        coEvery { taskRepository.getById(1L) } returns tareaSimpleHoy(id = 1).copy(
+            recurrenceType = RecurrenceType.DAILY.name
+        )
+        every { subtaskRepository.observeAll() } returns flowOf(
+            listOf(SubtaskEntity(id = 10, taskId = 1, title = "Paso", position = 0))
+        )
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onSelectDay(manana)
+            dispatcher.scheduler.runCurrent()
+            viewModel.onOpenSubtasks(bloqueConPartes(route = "planner/task/1"))
+            dispatcher.scheduler.runCurrent()
+            viewModel.onToggleSubtask(expectMostRecentItem().subtaskSheet!!.items.single())
+            dispatcher.scheduler.runCurrent()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { subtaskRepository.setDoneOn(10L, manana.toEpochDay(), true) }
+    }
+
+    @Test
+    fun `cambiar de dia cierra la hoja de subtareas`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(listOf(bloqueConPartes(partsTotal = 1)))
+        coEvery { taskRepository.getById(1L) } returns tareaSimpleHoy(id = 1)
+        every { subtaskRepository.observeAll() } returns flowOf(
+            listOf(SubtaskEntity(id = 10, taskId = 1, title = "Paso", position = 0))
+        )
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            awaitItem()
+            viewModel.onOpenSubtasks(bloqueConPartes(route = "planner/task/1"))
+            dispatcher.scheduler.runCurrent()
+            assertEquals(true, expectMostRecentItem().subtaskSheet != null)
+            viewModel.onSelectDay(LocalDate.now().plusDays(1))
+            dispatcher.scheduler.runCurrent()
+            assertNull(expectMostRecentItem().subtaskSheet)
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 }

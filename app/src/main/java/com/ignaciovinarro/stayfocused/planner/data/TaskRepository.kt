@@ -21,6 +21,7 @@ interface TaskRepository {
     fun observeByDateRange(startDate: Long, endDate: Long): Flow<List<TaskEntity>>
     suspend fun getById(id: Long): TaskEntity?
     fun observeOverdue(today: Long): Flow<List<TaskEntity>>
+    fun observeForRange(startDate: Long, endDate: Long): Flow<List<TaskEntity>>
     suspend fun getAllTimed(): List<TaskEntity>
     suspend fun create(task: TaskEntity): Long
     suspend fun update(task: TaskEntity)
@@ -39,6 +40,9 @@ class TaskRepositoryImpl(
     override suspend fun getById(id: Long): TaskEntity? = taskDao.getById(id)
 
     override fun observeOverdue(today: Long): Flow<List<TaskEntity>> = taskDao.observeOverdue(today)
+
+    override fun observeForRange(startDate: Long, endDate: Long): Flow<List<TaskEntity>> =
+        taskDao.observeForRange(startDate, endDate)
 
     override suspend fun getAllTimed(): List<TaskEntity> = taskDao.getAllTimed()
 
