@@ -837,4 +837,47 @@ class TodayViewModelTest {
             cancelAndIgnoreRemainingEvents()
         }
     }
+
+    // --- Huecos libres (PL-03, ticket 0020) ---
+
+    @Test
+    fun `los huecos libres salen de los bloques del dia`() = runTest(dispatcher) {
+        // Un bloque de 10:00 a 10:30 (el helper dura 30 min): quedan libres de 0 a 10 y de 10:30 al final.
+        every { timelineRepository.blocksFor(any()) } returns flowOf(listOf(bloque(startMinutes = 10 * 60)))
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            val huecos = awaitItem().freeGaps
+            assertEquals(listOf(0 to 10 * 60, 10 * 60 + 30 to 24 * 60), huecos.map { it.startMinutes to it.endMinutes })
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `un dia sin bloques no tiene huecos`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(emptyList())
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            assertEquals(emptyList<Any>(), awaitItem().freeGaps)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `los huecos cuentan los bloques de otros modulos`() = runTest(dispatcher) {
+        every { timelineRepository.blocksFor(any()) } returns flowOf(
+            listOf(bloque(source = "gym", startMinutes = 0, route = "gym/session/1").copy(durationMinutes = 23 * 60 + 30))
+        )
+        val viewModel = crearViewModel()
+
+        viewModel.uiState.test {
+            skipItems(1)
+            // Solo queda libre la media hora final (de 23:30 a 24:00), justo el minimo.
+            assertEquals(1, awaitItem().freeGaps.size)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
 }

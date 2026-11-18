@@ -160,6 +160,13 @@
     <string name="focus_dialog_cancel">Cancelar</string>
     <string name="focus_start_failed">No se pudo iniciar el enfoque: faltan permisos de alarma.</string>
 
+    <!-- Duraciones (compartido) y huecos libres de la línea de tiempo (PL-03) -->
+    <string name="duration_minutes">%d min</string>
+    <string name="duration_hours">%d h</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="free_gap_label">Libre: %1$s</string>
+    <string name="a11y_free_gap">Hueco libre de %1$s desde las %2$s, tocar para crear una tarea</string>
+
     <!-- Vista semanal (PL-12) -->
     <string name="week_previous">Semana anterior</string>
     <string name="week_next">Semana siguiente</string>
@@ -172,9 +179,6 @@
     </plurals>
     <string name="week_load_summary">%1$s · %2$s</string>
     <string name="week_load_empty">Sin tareas</string>
-    <string name="week_duration_minutes">%d min</string>
-    <string name="week_duration_hours">%d h</string>
-    <string name="week_duration_hours_minutes">%1$d h %2$d min</string>
     <string name="a11y_week_day">%1$s, %2$s</string>
     <string name="overdue_sheet_title">Tareas atrasadas</string>
     <string name="overdue_original_date">Era para el %1$s</string>

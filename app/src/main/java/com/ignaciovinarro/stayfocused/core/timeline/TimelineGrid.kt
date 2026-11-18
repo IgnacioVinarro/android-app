@@ -2,7 +2,7 @@ package com.ignaciovinarro.stayfocused.core.timeline
 
 const val TIMELINE_SNAP_MINUTES = 5
 const val MIN_BLOCK_DURATION_MINUTES = 5
-private const val MINUTES_IN_DAY = 24 * 60
+internal const val MINUTES_IN_DAY = 24 * 60
 
 // Funciones puras para mover/redimensionar bloques (PL-07): enganchan al intervalo de 5 minutos
 // y evitan que un bloque quede fuera del día (antes de medianoche o después de las 23:59).

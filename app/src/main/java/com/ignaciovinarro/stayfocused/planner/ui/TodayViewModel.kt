@@ -2,12 +2,14 @@ package com.ignaciovinarro.stayfocused.planner.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.ignaciovinarro.stayfocused.core.timeline.FreeGap
 import com.ignaciovinarro.stayfocused.core.timeline.OverlapArranger
 import com.ignaciovinarro.stayfocused.core.timeline.PositionedTimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineRepository
 import com.ignaciovinarro.stayfocused.core.timeline.clampDurationMinutes
 import com.ignaciovinarro.stayfocused.core.timeline.clampStartMinutes
+import com.ignaciovinarro.stayfocused.core.timeline.freeGaps
 import com.ignaciovinarro.stayfocused.core.timeline.snapToGrid
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_OWNER_TASK
 import com.ignaciovinarro.stayfocused.planner.data.ReminderRepository
@@ -61,6 +63,8 @@ data class TodayUiState(
     val isToday: Boolean = true,
     val weekLoad: List<DayLoad> = emptyList(),
     val positionedBlocks: List<PositionedTimelineBlock> = emptyList(),
+    // Huecos libres del día (PL-03), tocables para crear una tarea ahí.
+    val freeGaps: List<FreeGap> = emptyList(),
     val nowMinutes: Int = minuteOfDay(LocalTime.now()),
     val inboxTasks: List<TaskEntity> = emptyList(),
     // Subtareas de las tareas de la bandeja (clave = id de la tarea); las que no tienen no figuran.
@@ -163,6 +167,7 @@ class TodayViewModel @Inject constructor(
             isToday = date == today,
             weekLoad = week,
             positionedBlocks = OverlapArranger.arrange(day.blocks),
+            freeGaps = freeGaps(day.blocks),
             nowMinutes = nowMinutes,
             inboxTasks = inbox,
             inboxParts = inboxItems

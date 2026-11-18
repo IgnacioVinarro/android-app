@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ignaciovinarro.stayfocused.core.settings.SettingsRepository
+import com.ignaciovinarro.stayfocused.core.timeline.durationForGap
 import com.ignaciovinarro.stayfocused.core.ui.TaskColorKey
 import com.ignaciovinarro.stayfocused.core.ui.TaskIconKey
 import com.ignaciovinarro.stayfocused.planner.data.REMINDER_KIND_ALARM
@@ -44,6 +45,13 @@ private const val ARG_TASK_ID = "taskId"
 // no viene de un bloque puntual (tarea nueva, o tarea no recurrente).
 private const val ARG_OCCURRENCE_DATE = "date"
 private const val SIN_FECHA_DE_OCURRENCIA = -1L
+
+// Datos para precargar una tarea NUEVA (PL-03): el día que se está viendo y, si se toca un hueco libre,
+// su hora de inicio y su duración. -1 = no viene dato.
+private const val ARG_NEW_DATE = "newDate"
+private const val ARG_START = "start"
+private const val ARG_GAP = "gap"
+private const val SIN_DATO = -1L
 
 // Qué acción quedó pendiente de elegir alcance (PL-15): se le pregunta al usuario solo cuando la
 // tarea es recurrente, antes de guardar o de borrar.
@@ -107,7 +115,16 @@ class CreateTaskViewModel @Inject constructor(
     private val occurrenceEpochDay: Long? =
         savedStateHandle.get<Long>(ARG_OCCURRENCE_DATE)?.takeIf { it != SIN_FECHA_DE_OCURRENCIA }
 
-    private val _uiState = MutableStateFlow(CreateTaskUiState())
+    private val newTaskEpochDay: Long? = savedStateHandle.get<Long>(ARG_NEW_DATE)?.takeIf { it != SIN_DATO }
+    private val newTaskStartMinutes: Int? = savedStateHandle.get<Long>(ARG_START)?.takeIf { it != SIN_DATO }?.toInt()
+    private val gapMinutes: Int? = savedStateHandle.get<Long>(ARG_GAP)?.takeIf { it != SIN_DATO }?.toInt()
+
+    private val _uiState = MutableStateFlow(
+        CreateTaskUiState(
+            date = newTaskEpochDay?.let(LocalDate::ofEpochDay) ?: LocalDate.now(),
+            startTime = newTaskStartMinutes?.toLocalTime() ?: LocalTime.now()
+        )
+    )
     val uiState: StateFlow<CreateTaskUiState> = _uiState.asStateFlow()
 
     // Tal como están en la base, para no perder `id`/`uuid`/`createdAt` al editar (mismo criterio
@@ -124,7 +141,9 @@ class CreateTaskViewModel @Inject constructor(
         if (existingTaskId == 0L) {
             viewModelScope.launch {
                 val defaultDuration = settingsRepository.defaultTaskDuration.first()
-                _uiState.update { it.copy(durationMinutes = defaultDuration) }
+                // Si viene de un hueco, la tarea no puede ser más larga que el hueco.
+                val duration = gapMinutes?.let { durationForGap(defaultDuration, it) } ?: defaultDuration
+                _uiState.update { it.copy(durationMinutes = duration) }
             }
         } else {
             viewModelScope.launch {

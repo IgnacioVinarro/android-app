@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.ignaciovinarro.stayfocused.R
+import com.ignaciovinarro.stayfocused.core.ui.formatDuration
 import com.ignaciovinarro.stayfocused.planner.domain.DayLoad
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -190,16 +191,5 @@ private fun loadSummary(load: DayLoad): String {
     if (load.taskCount == 0) return stringResource(R.string.week_load_empty)
     val tasks = pluralStringResource(R.plurals.week_task_count, load.taskCount, load.taskCount)
     if (load.plannedMinutes == 0) return tasks
-    return stringResource(R.string.week_load_summary, tasks, formatPlannedMinutes(load.plannedMinutes))
-}
-
-@Composable
-private fun formatPlannedMinutes(minutes: Int): String {
-    val hours = minutes / 60
-    val rest = minutes % 60
-    return when {
-        hours == 0 -> stringResource(R.string.week_duration_minutes, rest)
-        rest == 0 -> stringResource(R.string.week_duration_hours, hours)
-        else -> stringResource(R.string.week_duration_hours_minutes, hours, rest)
-    }
+    return stringResource(R.string.week_load_summary, tasks, formatDuration(load.plannedMinutes))
 }

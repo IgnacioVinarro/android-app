@@ -75,6 +75,20 @@ class CreateTaskViewModelTest {
         return viewModel
     }
 
+    // Tarea nueva con datos de precarga (PL-03): el dia que se esta viendo y, si viene de un hueco, hora y duracion.
+    private fun crearViewModelNuevaConPrecarga(newDate: Long, start: Long = -1L, gap: Long = -1L): CreateTaskViewModel {
+        val viewModel = CreateTaskViewModel(
+            SavedStateHandle(mapOf("taskId" to 0L, "newDate" to newDate, "start" to start, "gap" to gap)),
+            taskRepository,
+            taskOccurrenceRepository,
+            reminderRepository,
+            subtaskRepository,
+            settingsRepository
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+        return viewModel
+    }
+
     private fun crearViewModelEditando(taskId: Long, occurrenceDate: Long = -1L): CreateTaskViewModel {
         val viewModel = CreateTaskViewModel(
             SavedStateHandle(mapOf("taskId" to taskId, "date" to occurrenceDate)),
@@ -86,6 +100,54 @@ class CreateTaskViewModelTest {
         )
         dispatcher.scheduler.advanceUntilIdle()
         return viewModel
+    }
+
+    // --- Precarga desde el dia elegido y desde un hueco libre (PL-03, ticket 0020) ---
+
+    @Test
+    fun `una tarea nueva toma la fecha del dia que se esta viendo`() = runTest(dispatcher) {
+        val manana = LocalDate.now().plusDays(1)
+
+        val viewModel = crearViewModelNuevaConPrecarga(newDate = manana.toEpochDay())
+
+        assertEquals(manana, viewModel.uiState.value.date)
+        assertEquals(45, viewModel.uiState.value.durationMinutes) // sin hueco: la de Ajustes
+    }
+
+    @Test
+    fun `una tarea creada en un hueco toma la hora de inicio del hueco`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNuevaConPrecarga(
+            newDate = LocalDate.now().toEpochDay(), start = 10 * 60 + 15L, gap = 120L
+        )
+
+        assertEquals(LocalTime.of(10, 15), viewModel.uiState.value.startTime)
+        assertTrue(viewModel.uiState.value.hasStartTime)
+    }
+
+    @Test
+    fun `en un hueco largo la duracion es la de Ajustes`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNuevaConPrecarga(
+            newDate = LocalDate.now().toEpochDay(), start = 9 * 60L, gap = 180L
+        )
+
+        assertEquals(45, viewModel.uiState.value.durationMinutes)
+    }
+
+    @Test
+    fun `en un hueco corto la duracion es la del hueco`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNuevaConPrecarga(
+            newDate = LocalDate.now().toEpochDay(), start = 9 * 60L, gap = 30L
+        )
+
+        assertEquals(30, viewModel.uiState.value.durationMinutes)
+    }
+
+    @Test
+    fun `sin datos de precarga la tarea nueva queda como siempre`() = runTest(dispatcher) {
+        val viewModel = crearViewModelNueva()
+
+        assertEquals(LocalDate.now(), viewModel.uiState.value.date)
+        assertEquals(45, viewModel.uiState.value.durationMinutes)
     }
 
     // --- Crear tarea (comportamiento ya existente, sin cambios de alcance) ---

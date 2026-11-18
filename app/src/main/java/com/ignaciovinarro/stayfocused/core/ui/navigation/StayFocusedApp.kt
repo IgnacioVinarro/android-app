@@ -25,15 +25,21 @@ import com.ignaciovinarro.stayfocused.planner.ui.RoutineEditorScreen
 import com.ignaciovinarro.stayfocused.planner.ui.RoutinesScreen
 import com.ignaciovinarro.stayfocused.planner.ui.TodayScreen
 
-private const val ROUTE_CREATE_TASK = "planner/task/{taskId}?date={date}"
+private const val ROUTE_CREATE_TASK = "planner/task/{taskId}?date={date}&newDate={newDate}&start={start}&gap={gap}"
 private const val ROUTE_ROUTINES = "planner/routines"
 private const val ROUTE_ROUTINE_EDITOR = "planner/routines/editor/{routineId}"
 private const val ARG_TASK_ID = "taskId"
 private const val ARG_OCCURRENCE_DATE = "date"
+private const val ARG_NEW_DATE = "newDate"
+private const val ARG_START = "start"
+private const val ARG_GAP = "gap"
 private const val ARG_ROUTINE_ID = "routineId"
 private const val SIN_FECHA_DE_OCURRENCIA = -1L
 
-private fun createTaskRoute(): String = "planner/task/0?date=$SIN_FECHA_DE_OCURRENCIA"
+// Tarea nueva en `date` (epochDay del día que se está viendo). Si viene de un hueco libre (PL-03), también
+// su hora de inicio y su duración; sin hueco, esos dos quedan en -1 (sin dato).
+private fun createTaskRoute(date: Long, startMinutes: Int = SIN_FECHA_DE_OCURRENCIA.toInt(), gapMinutes: Int = SIN_FECHA_DE_OCURRENCIA.toInt()): String =
+    "planner/task/0?date=$SIN_FECHA_DE_OCURRENCIA&newDate=$date&start=$startMinutes&gap=$gapMinutes"
 
 // `occurrenceDate` es la fecha (epochDay) del bloque tocado en la línea de tiempo: para una
 // tarea recurrente es la ocurrencia puntual que se va a editar/borrar (PL-15).
@@ -55,7 +61,8 @@ fun StayFocusedApp() {
         ) {
             composable(StayFocusedDestination.TODAY.route) {
                 TodayScreen(
-                    onAddTask = { navController.navigate(createTaskRoute()) },
+                    onAddTask = { date -> navController.navigate(createTaskRoute(date)) },
+                    onCreateTaskInGap = { date, start, gap -> navController.navigate(createTaskRoute(date, start, gap)) },
                     onOpenRoutines = { navController.navigate(ROUTE_ROUTINES) },
                     onEditTask = { taskId, occurrenceDate ->
                         navController.navigate(editTaskRoute(taskId, occurrenceDate))
@@ -70,7 +77,10 @@ fun StayFocusedApp() {
                 ROUTE_CREATE_TASK,
                 arguments = listOf(
                     navArgument(ARG_TASK_ID) { type = NavType.LongType },
-                    navArgument(ARG_OCCURRENCE_DATE) { type = NavType.LongType; defaultValue = SIN_FECHA_DE_OCURRENCIA }
+                    navArgument(ARG_OCCURRENCE_DATE) { type = NavType.LongType; defaultValue = SIN_FECHA_DE_OCURRENCIA },
+                    navArgument(ARG_NEW_DATE) { type = NavType.LongType; defaultValue = SIN_FECHA_DE_OCURRENCIA },
+                    navArgument(ARG_START) { type = NavType.LongType; defaultValue = SIN_FECHA_DE_OCURRENCIA },
+                    navArgument(ARG_GAP) { type = NavType.LongType; defaultValue = SIN_FECHA_DE_OCURRENCIA }
                 )
             ) {
                 CreateTaskScreen(

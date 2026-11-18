@@ -62,7 +62,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -75,12 +79,14 @@ import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.ignaciovinarro.stayfocused.R
+import com.ignaciovinarro.stayfocused.core.timeline.FreeGap
 import com.ignaciovinarro.stayfocused.core.timeline.PositionedTimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.TimelineBlock
 import com.ignaciovinarro.stayfocused.core.timeline.clampDurationMinutes
 import com.ignaciovinarro.stayfocused.core.timeline.clampStartMinutes
 import com.ignaciovinarro.stayfocused.core.ui.TimePickerDialog
 import com.ignaciovinarro.stayfocused.core.ui.colorForKey
+import com.ignaciovinarro.stayfocused.core.ui.formatDuration
 import com.ignaciovinarro.stayfocused.core.ui.iconForKey
 import com.ignaciovinarro.stayfocused.planner.data.TaskEntity
 import com.ignaciovinarro.stayfocused.planner.domain.TIMELINE_SOURCE_PLANNER
@@ -97,7 +103,9 @@ private const val MINUTES_IN_HOUR = 60
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(
-    onAddTask: () -> Unit = {},
+    // Crear una tarea en el día que se está viendo (epochDay), y crearla en un hueco libre (PL-03).
+    onAddTask: (date: Long) -> Unit = {},
+    onCreateTaskInGap: (date: Long, startMinutes: Int, gapMinutes: Int) -> Unit = { _, _, _ -> },
     onOpenRoutines: () -> Unit = {},
     onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
@@ -180,6 +188,17 @@ fun TodayScreen(
                             .height(MINUTE_HEIGHT * (HOURS_IN_DAY * MINUTES_IN_HOUR))
                     ) {
                         HourScale()
+                        // Los huecos van antes que los bloques: se dibujan debajo y un bloque corto,
+                        // que tiene alto mínimo, no le quita el toque a otro.
+                        FreeGapSlots(
+                            gaps = uiState.freeGaps,
+                            availableWidth = availableWidth,
+                            onClick = { gap ->
+                                onCreateTaskInGap(
+                                    uiState.selectedDate.toEpochDay(), gap.startMinutes, gap.durationMinutes
+                                )
+                            }
+                        )
                         PositionedBlocks(
                             blocks = uiState.positionedBlocks,
                             availableWidth = availableWidth,
@@ -211,7 +230,7 @@ fun TodayScreen(
         }
 
         FloatingActionButton(
-            onClick = onAddTask,
+            onClick = { onAddTask(uiState.selectedDate.toEpochDay()) },
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp)
@@ -343,6 +362,55 @@ private fun HourScale() {
         }
     }
 }
+
+// Huecos libres del día (PL-03): borde punteado con "+" y la duración libre. Tocarlos crea una tarea ahí.
+// Llevan ícono y texto además del borde: no dependen solo del color. Miden 1 dp por minuto, así que uno
+// de 30 min queda por debajo de los 48 dp recomendados (ver ticket 0020).
+@Composable
+private fun FreeGapSlots(gaps: List<FreeGap>, availableWidth: Dp, onClick: (FreeGap) -> Unit) {
+    val outline = MaterialTheme.colorScheme.outline
+    gaps.forEach { gap ->
+        val duration = formatDuration(gap.durationMinutes)
+        val description = stringResource(
+            R.string.a11y_free_gap, duration, formatClockTime(gap.startMinutes)
+        )
+        Box(
+            modifier = Modifier
+                .offset(x = HOUR_LABEL_WIDTH, y = MINUTE_HEIGHT * gap.startMinutes)
+                .width(availableWidth)
+                .height(MINUTE_HEIGHT * gap.durationMinutes)
+                .padding(2.dp)
+                .drawBehind {
+                    drawRoundRect(
+                        color = outline,
+                        cornerRadius = CornerRadius(8.dp.toPx()),
+                        style = Stroke(
+                            width = 1.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f))
+                        )
+                    )
+                }
+                .clickable(onClick = { onClick(gap) })
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.Add, contentDescription = null, tint = outline, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    stringResource(R.string.free_gap_label, duration),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+        }
+    }
+}
+
+// "HH:mm" para minutos desde las 00:00.
+private fun formatClockTime(minutes: Int): String =
+    "%02d:%02d".format(minutes / MINUTES_IN_HOUR, minutes % MINUTES_IN_HOUR)
 
 @Composable
 private fun PositionedBlocks(
