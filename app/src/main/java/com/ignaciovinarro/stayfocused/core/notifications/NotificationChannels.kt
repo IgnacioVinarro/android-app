@@ -13,6 +13,10 @@ object NotificationChannels {
     const val TASKS = "tasks"
     const val ALARMS = "alarms"
 
+    // Enfoque (PL-13): uno silencioso para la notificación persistente y otro con sonido para el fin.
+    const val FOCUS = "focus"
+    const val FOCUS_END = "focus_end"
+
     // Crear un canal que ya existe no hace nada, así que es seguro llamarlo en cada arranque.
     // minSdk 26 = los canales existen siempre, no hace falta chequear la versión.
     fun createAll(context: Context) {
@@ -43,6 +47,23 @@ object NotificationChannels {
                 )
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 600, 400, 600)
+            }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                FOCUS,
+                context.getString(R.string.notification_channel_focus),
+                NotificationManager.IMPORTANCE_LOW // sin sonido ni vibración: es una notificación fija
+            ).apply { description = context.getString(R.string.notification_channel_focus_description) }
+        )
+        manager.createNotificationChannel(
+            NotificationChannel(
+                FOCUS_END,
+                context.getString(R.string.notification_channel_focus_end),
+                NotificationManager.IMPORTANCE_HIGH // suena y vibra con el sonido de notificación del usuario
+            ).apply {
+                description = context.getString(R.string.notification_channel_focus_end_description)
+                enableVibration(true)
             }
         )
     }

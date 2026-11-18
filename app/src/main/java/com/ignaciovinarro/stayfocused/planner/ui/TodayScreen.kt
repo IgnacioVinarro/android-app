@@ -43,6 +43,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -100,9 +101,17 @@ fun TodayScreen(
     onOpenRoutines: () -> Unit = {},
     onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
-    viewModel: TodayViewModel = hiltViewModel()
+    viewModel: TodayViewModel = hiltViewModel(),
+    focusViewModel: FocusTimerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val focusState by focusViewModel.uiState.collectAsState()
+    // Tarea para la que se está eligiendo la duración del enfoque (PL-13): id y título.
+    var focusTarget by remember { mutableStateOf<Pair<Long, String>?>(null) }
+    // Al arrancar la sesión, el diálogo se cierra solo.
+    LaunchedEffect(focusState.session != null) {
+        if (focusState.session != null) focusTarget = null
+    }
     var taskToSchedule by remember { mutableStateOf<TaskEntity?>(null) }
     // Hoja de tareas atrasadas (PL-14) y la tarea para la que se está eligiendo nueva fecha.
     var showOverdue by rememberSaveable { mutableStateOf(false) }
@@ -124,6 +133,14 @@ fun TodayScreen(
                 onPreviousWeek = viewModel::onPreviousWeek,
                 onNextWeek = viewModel::onNextWeek,
                 onGoToToday = viewModel::onGoToToday
+            )
+
+            // Enfoque en curso (PL-13): solo si hay una sesión.
+            FocusBar(
+                state = focusState,
+                onPause = focusViewModel::onPause,
+                onResume = focusViewModel::onResume,
+                onStop = focusViewModel::onStop
             )
 
             // Tareas atrasadas (PL-14): solo si hay.
@@ -170,7 +187,12 @@ fun TodayScreen(
                             onOpenSubtasks = viewModel::onOpenSubtasks,
                             onMoveTask = viewModel::onMoveTask,
                             onResizeTask = viewModel::onResizeTask,
-                            onEditTask = onEditTask
+                            onEditTask = onEditTask,
+                            onStartFocus = if (focusState.session == null) {
+                                { block, taskId -> focusTarget = taskId to block.title }
+                            } else {
+                                null
+                            }
                         )
                         // La línea de "ahora" solo tiene sentido en el día de hoy.
                         if (uiState.isToday) NowMarker(nowMinutes = uiState.nowMinutes)
@@ -215,6 +237,18 @@ fun TodayScreen(
             minDate = today,
             onConfirm = { date -> viewModel.onRescheduleOverdue(task, date) },
             onDismiss = { overdueToReschedule = null }
+        )
+    }
+
+    focusTarget?.let { (taskId, title) ->
+        FocusStartDialog(
+            taskTitle = title,
+            startFailed = focusState.startFailed,
+            onStart = { minutes -> focusViewModel.onStart(taskId, title, minutes) },
+            onDismiss = {
+                focusViewModel.onDismissStartError()
+                focusTarget = null
+            }
         )
     }
 
@@ -318,7 +352,9 @@ private fun PositionedBlocks(
     onOpenSubtasks: (TimelineBlock) -> Unit,
     onMoveTask: (TimelineBlock, Int) -> Unit,
     onResizeTask: (TimelineBlock, Int) -> Unit,
-    onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit
+    onEditTask: (taskId: Long, occurrenceDate: Long) -> Unit,
+    // Nulo = no se ofrece iniciar enfoque (ya hay una sesión en curso).
+    onStartFocus: ((block: TimelineBlock, taskId: Long) -> Unit)?
 ) {
     val density = LocalDensity.current
     // Mientras se arrastra un bloque, se muestra esta posición/duración provisoria en vez de la
@@ -354,6 +390,14 @@ private fun PositionedBlocks(
                 partsTotal = block.partsTotal,
                 onOpenSubtasks = { onOpenSubtasks(block) },
                 onToggleComplete = { onToggleComplete(block) },
+                onStartFocus = if (onStartFocus != null && block.source == TIMELINE_SOURCE_PLANNER && !block.completed) {
+                    {
+                        val taskId = block.route.substringAfterLast("/").toLongOrNull()
+                        taskId?.let { onStartFocus(block, it) }
+                    }
+                } else {
+                    null
+                },
                 onEditTask = if (block.source == TIMELINE_SOURCE_PLANNER) {
                     {
                         val taskId = block.route.substringAfterLast("/").toLongOrNull()
@@ -419,6 +463,7 @@ private fun TimelineBlockCard(
     partsTotal: Int,
     onOpenSubtasks: () -> Unit,
     onToggleComplete: () -> Unit,
+    onStartFocus: (() -> Unit)?,
     onEditTask: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
@@ -454,6 +499,18 @@ private fun TimelineBlockCard(
             )
             if (partsTotal > 0) {
                 PartsChip(partsDone, partsTotal, onClick = onOpenSubtasks)
+            }
+            // Ícono chico para enfocar (PL-13); mismo criterio de área táctil que el de editar.
+            if (onStartFocus != null) {
+                Icon(
+                    imageVector = Icons.Filled.Timer,
+                    contentDescription = stringResource(R.string.a11y_focus_start, title),
+                    tint = Color.White,
+                    modifier = Modifier
+                        .padding(start = 4.dp)
+                        .size(16.dp)
+                        .clickable(onClick = onStartFocus)
+                )
             }
             // Ícono chico para editar/borrar (PL-15): el bloque puede ser angosto, así que el área
             // táctil acá es más chica que los 48 dp recomendados, mismo criterio pragmático que

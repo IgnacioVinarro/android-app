@@ -8,6 +8,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Temporizador de enfoque (PL-13): Android 14+ exige declarar un tipo para todo servicio en primer
+         plano y ninguno de los tipos específicos encaja con un temporizador. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <!-- Lint lo marca como ProtectedPermissions por datos desactualizados de su base de permisos;
          SCHEDULE_EXACT_ALARM es un permiso especial que el usuario habilita en Ajustes, no de firma. -->
@@ -85,6 +88,21 @@
              No se exporta: solo la propia app (AlarmManager y la notificación) lo invoca. -->
         <receiver
             android:name=".planner.data.ReminderReceiver"
+            android:exported="false" />
+
+        <!-- Temporizador de enfoque (PL-13). El servicio mantiene viva la app mientras corre y muestra la
+             notificación persistente; el receptor recibe la alarma de fin y los botones de esa notificación.
+             Ninguno se exporta: solo la propia app los invoca. -->
+        <service
+            android:name=".planner.data.FocusTimerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="focus_timer" />
+        </service>
+        <receiver
+            android:name=".planner.data.FocusTimerReceiver"
             android:exported="false" />
 
     </application>

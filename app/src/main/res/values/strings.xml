@@ -132,6 +132,34 @@
         <item quantity="other">%d atrasadas</item>
     </plurals>
 
+    <!-- Temporizador de enfoque (PL-13) -->
+    <string name="notification_channel_focus">Enfoque</string>
+    <string name="notification_channel_focus_description">Notificación fija mientras corre un temporizador de enfoque</string>
+    <string name="notification_channel_focus_end">Fin de enfoque</string>
+    <string name="notification_channel_focus_end_description">Aviso cuando termina un temporizador de enfoque</string>
+    <string name="focus_notification_running">Enfocado</string>
+    <string name="focus_notification_paused">En pausa · quedan %1$s</string>
+    <string name="focus_action_pause">Pausar</string>
+    <string name="focus_action_resume">Reanudar</string>
+    <string name="focus_action_stop">Detener</string>
+    <string name="focus_end_title">¡Terminó el enfoque!</string>
+    <string name="focus_end_text">%1$s: es hora de un descanso.</string>
+    <string name="focus_bar_paused">En pausa</string>
+    <string name="a11y_focus_bar">Enfoque en %1$s, quedan %2$s</string>
+    <string name="a11y_focus_bar_paused">Enfoque en %1$s en pausa, quedan %2$s</string>
+    <string name="a11y_focus_pause">Pausar enfoque</string>
+    <string name="a11y_focus_resume">Reanudar enfoque</string>
+    <string name="a11y_focus_stop">Detener enfoque</string>
+    <string name="a11y_focus_start">Enfocar en %1$s</string>
+    <string name="focus_dialog_title">Enfocar: %1$s</string>
+    <string name="focus_dialog_minutes_option">%1$d min</string>
+    <string name="focus_dialog_custom_option">Otra</string>
+    <string name="focus_dialog_custom_label">Minutos</string>
+    <string name="focus_dialog_custom_error">Entre %1$d y %2$d minutos</string>
+    <string name="focus_dialog_start">Iniciar</string>
+    <string name="focus_dialog_cancel">Cancelar</string>
+    <string name="focus_start_failed">No se pudo iniciar el enfoque: faltan permisos de alarma.</string>
+
     <!-- Vista semanal (PL-12) -->
     <string name="week_previous">Semana anterior</string>
     <string name="week_next">Semana siguiente</string>
@@ -171,8 +199,8 @@
     <string name="alarm_screen_title">Alarma</string>
 
     <!-- Permisos de los recordatorios -->
-    <string name="reminder_permission_notifications_message">Para avisarte necesito permiso para mostrar notificaciones. Sin él, los recordatorios no se ven.</string>
-    <string name="reminder_permission_alarm_message">Para que el aviso suene a la hora exacta, Android necesita que permitas las alarmas y recordatorios para esta app. Sin eso, los recordatorios no suenan.</string>
+    <string name="reminder_permission_notifications_message">Para avisarte necesito permiso para mostrar notificaciones. Sin él, los avisos no se ven.</string>
+    <string name="reminder_permission_alarm_message">Para que el aviso suene a la hora exacta, Android necesita que permitas las alarmas y recordatorios para esta app. Sin eso, los avisos no suenan.</string>
     <string name="reminder_permission_notifications_button">Permitir notificaciones</string>
     <string name="reminder_permission_settings_button">Abrir ajustes</string>
 

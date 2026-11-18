@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +40,11 @@ import com.ignaciovinarro.stayfocused.core.notifications.ReminderPermissions
 // está todo en orden, no dibuja nada. Se muestra en el momento en que hace falta (cuando la persona
 // elige un recordatorio), no al abrir la app (CLAUDE.md). Si rechaza, el resto de la app sigue igual.
 @Composable
-fun ReminderPermissionPrompt(modifier: Modifier = Modifier) {
+fun ReminderPermissionPrompt(
+    modifier: Modifier = Modifier,
+    // Avisa si falta algún permiso, para que quien lo usa deshabilite su acción (ej. "Iniciar").
+    onMissingPermissionChange: (Boolean) -> Unit = {}
+) {
     val context = LocalContext.current
     var issue by remember { mutableStateOf(ReminderPermissions.currentIssue(context)) }
     // Android 13+ solo muestra el diálogo del sistema un par de veces; después hay que ir a Ajustes.
@@ -54,6 +59,8 @@ fun ReminderPermissionPrompt(modifier: Modifier = Modifier) {
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+
+    LaunchedEffect(issue) { onMissingPermissionChange(issue != null) }
 
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         askedOnce = true
