@@ -238,4 +238,17 @@
     <string name="backup_import_invalid_file">El archivo no es un respaldo válido o es de una versión más nueva de la app. No se cambió ningún dato.</string>
     <string name="backup_import_failed">No se pudo importar el respaldo</string>
     <string name="chart_empty">Todavía no hay datos para mostrar</string>
+
+    <!-- Finanzas: categorías predefinidas (ticket 0028) -->
+    <string name="finance_category_food">Comida</string>
+    <string name="finance_category_groceries">Supermercado</string>
+    <string name="finance_category_transport">Transporte</string>
+    <string name="finance_category_home">Hogar y servicios</string>
+    <string name="finance_category_health">Salud</string>
+    <string name="finance_category_leisure">Ocio y salidas</string>
+    <string name="finance_category_education">Educación</string>
+    <string name="finance_category_clothing">Ropa</string>
+    <string name="finance_category_other_expense">Otros gastos</string>
+    <string name="finance_category_salary">Sueldo</string>
+    <string name="finance_category_other_income">Otros ingresos</string>
 </resources>

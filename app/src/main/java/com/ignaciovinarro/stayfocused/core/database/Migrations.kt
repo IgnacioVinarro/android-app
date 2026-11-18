@@ -179,3 +179,123 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
         )
     }
 }
+
+// Versión 8 (Fase 2, Finanzas — ticket 0028): cuentas, categorías, transacciones, presupuestos,
+// etiquetas y la unión transacción↔etiqueta.
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `account` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `type` TEXT NOT NULL,
+                `initialBalance` INTEGER NOT NULL,
+                `iconKey` TEXT NOT NULL,
+                `colorKey` TEXT NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_account_uuid` ON `account` (`uuid`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `category` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `type` TEXT NOT NULL,
+                `iconKey` TEXT NOT NULL,
+                `colorKey` TEXT NOT NULL,
+                `isDefault` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_category_uuid` ON `category` (`uuid`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `finance_transaction` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `type` TEXT NOT NULL,
+                `amount` INTEGER NOT NULL,
+                `date` INTEGER NOT NULL,
+                `accountId` INTEGER NOT NULL,
+                `categoryId` INTEGER,
+                `transferAccountId` INTEGER,
+                `note` TEXT,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_finance_transaction_uuid` ON `finance_transaction` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_finance_transaction_accountId` ON `finance_transaction` (`accountId`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_finance_transaction_categoryId` ON `finance_transaction` (`categoryId`)")
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_finance_transaction_transferAccountId` " +
+                "ON `finance_transaction` (`transferAccountId`)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_finance_transaction_date` ON `finance_transaction` (`date`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `budget` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `categoryId` INTEGER,
+                `effectiveFrom` INTEGER NOT NULL,
+                `amount` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_budget_uuid` ON `budget` (`uuid`)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_budget_categoryId` ON `budget` (`categoryId`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `tag` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_tag_uuid` ON `tag` (`uuid`)")
+
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `transaction_tag` (
+                `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                `uuid` TEXT NOT NULL,
+                `transactionId` INTEGER NOT NULL,
+                `tagId` INTEGER NOT NULL,
+                `status` INTEGER NOT NULL,
+                `createdAt` INTEGER NOT NULL,
+                `updatedAt` INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_transaction_tag_uuid` ON `transaction_tag` (`uuid`)")
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS `index_transaction_tag_transactionId_tagId` " +
+                "ON `transaction_tag` (`transactionId`, `tagId`)"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_transaction_tag_tagId` ON `transaction_tag` (`tagId`)")
+    }
+}

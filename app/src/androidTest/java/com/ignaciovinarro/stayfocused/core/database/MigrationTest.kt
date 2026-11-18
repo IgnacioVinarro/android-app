@@ -196,4 +196,43 @@ class MigrationTest {
         assertThat(tildes.isNull(tildes.getColumnIndexOrThrow("completedAt"))).isTrue()
         tildes.close()
     }
+
+    @Test
+    fun migrarDe7a8_conservaLasTareasYCreaLasTablasDeFinanzas() {
+        helper.createDatabase(TEST_DB, 7).apply {
+            execSQL(
+                "INSERT INTO task (id, uuid, title, date, startMinutes, durationMinutes, " +
+                    "iconKey, colorKey, status, createdAt, updatedAt) VALUES " +
+                    "(1, 'uuid-1', 'Tarea vieja', 19000, 540, 30, 'task_default', 'blue', 0, 1, 1)"
+            )
+            close()
+        }
+
+        val migrada = helper.runMigrationsAndValidate(TEST_DB, 8, true, MIGRATION_7_8)
+
+        val tareas = migrada.query("SELECT * FROM task WHERE id = 1")
+        assertThat(tareas.moveToFirst()).isTrue()
+        assertThat(tareas.getString(tareas.getColumnIndexOrThrow("title"))).isEqualTo("Tarea vieja")
+        tareas.close()
+
+        listOf("account", "category", "finance_transaction", "budget", "tag", "transaction_tag").forEach { tabla ->
+            val tablas = migrada.query(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name = '$tabla'"
+            )
+            assertThat(tablas.moveToFirst()).isTrue()
+            tablas.close()
+        }
+
+        // Las tablas nuevas aceptan filas; categoryId y transferAccountId pueden ser nulos.
+        migrada.execSQL(
+            "INSERT INTO finance_transaction (id, uuid, type, amount, date, accountId, categoryId, " +
+                "transferAccountId, note, status, createdAt, updatedAt) " +
+                "VALUES (1, 'uuid-tx-1', 'TRANSFER', 1000, 19000, 1, NULL, 2, NULL, 0, 1, 1)"
+        )
+        val transacciones = migrada.query("SELECT * FROM finance_transaction WHERE id = 1")
+        assertThat(transacciones.moveToFirst()).isTrue()
+        assertThat(transacciones.isNull(transacciones.getColumnIndexOrThrow("categoryId"))).isTrue()
+        assertThat(transacciones.getLong(transacciones.getColumnIndexOrThrow("amount"))).isEqualTo(1000L)
+        transacciones.close()
+    }
 }

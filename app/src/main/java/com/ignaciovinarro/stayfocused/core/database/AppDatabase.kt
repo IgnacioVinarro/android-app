@@ -6,6 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.ignaciovinarro.stayfocused.core.backup.BackupDao
+import com.ignaciovinarro.stayfocused.finance.data.AccountDao
+import com.ignaciovinarro.stayfocused.finance.data.AccountEntity
+import com.ignaciovinarro.stayfocused.finance.data.BudgetDao
+import com.ignaciovinarro.stayfocused.finance.data.BudgetEntity
+import com.ignaciovinarro.stayfocused.finance.data.CategoryDao
+import com.ignaciovinarro.stayfocused.finance.data.CategoryEntity
+import com.ignaciovinarro.stayfocused.finance.data.TagDao
+import com.ignaciovinarro.stayfocused.finance.data.TagEntity
+import com.ignaciovinarro.stayfocused.finance.data.TransactionDao
+import com.ignaciovinarro.stayfocused.finance.data.TransactionEntity
+import com.ignaciovinarro.stayfocused.finance.data.TransactionTagDao
+import com.ignaciovinarro.stayfocused.finance.data.TransactionTagEntity
 import com.ignaciovinarro.stayfocused.planner.data.ReminderDao
 import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionDao
@@ -37,9 +49,15 @@ private const val DATABASE_NAME = "stayfocused.db"
         RoutineItemEntity::class,
         ReminderEntity::class,
         SubtaskEntity::class,
-        SubtaskCompletionEntity::class
+        SubtaskCompletionEntity::class,
+        AccountEntity::class,
+        CategoryEntity::class,
+        TransactionEntity::class,
+        BudgetEntity::class,
+        TagEntity::class,
+        TransactionTagEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -52,6 +70,12 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun subtaskDao(): SubtaskDao
     abstract fun subtaskCompletionDao(): SubtaskCompletionDao
     abstract fun backupDao(): BackupDao
+    abstract fun accountDao(): AccountDao
+    abstract fun categoryDao(): CategoryDao
+    abstract fun transactionDao(): TransactionDao
+    abstract fun budgetDao(): BudgetDao
+    abstract fun tagDao(): TagDao
+    abstract fun transactionTagDao(): TransactionTagDao
 }
 
 @Module
@@ -62,7 +86,7 @@ object DatabaseModule {
     @Singleton
     fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, DATABASE_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
             .build()
 
     @Provides
@@ -88,4 +112,22 @@ object DatabaseModule {
 
     @Provides
     fun provideBackupDao(database: AppDatabase): BackupDao = database.backupDao()
+
+    @Provides
+    fun provideAccountDao(database: AppDatabase): AccountDao = database.accountDao()
+
+    @Provides
+    fun provideCategoryDao(database: AppDatabase): CategoryDao = database.categoryDao()
+
+    @Provides
+    fun provideTransactionDao(database: AppDatabase): TransactionDao = database.transactionDao()
+
+    @Provides
+    fun provideBudgetDao(database: AppDatabase): BudgetDao = database.budgetDao()
+
+    @Provides
+    fun provideTagDao(database: AppDatabase): TagDao = database.tagDao()
+
+    @Provides
+    fun provideTransactionTagDao(database: AppDatabase): TransactionTagDao = database.transactionTagDao()
 }
