@@ -1,7 +1,7 @@
 # Ticket 0016 – Completar subtareas y progreso del día (PL-05, parte 2)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Segunda mitad de PL-05: "Marcar tareas y subtareas como completadas con un toque, con animación y

@@ -1,7 +1,7 @@
 # Ticket 0015 – Subtareas: datos y formulario (PL-04 / PL-05, parte 1)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Primera mitad de PL-05 y la parte de subtareas que le faltaba a PL-04 ("Crear tarea con … subtareas").

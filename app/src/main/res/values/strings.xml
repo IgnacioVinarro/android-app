@@ -237,4 +237,5 @@
     <string name="backup_import_done_alarms_pending">Respaldo importado, pero faltan permisos para reprogramar los avisos. Revisalos al editar una tarea.</string>
     <string name="backup_import_invalid_file">El archivo no es un respaldo válido o es de una versión más nueva de la app. No se cambió ningún dato.</string>
     <string name="backup_import_failed">No se pudo importar el respaldo</string>
+    <string name="chart_empty">Todavía no hay datos para mostrar</string>
 </resources>

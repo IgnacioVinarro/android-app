@@ -1,7 +1,7 @@
 # Ticket 0009 – Tareas recurrentes: crear desde la UI y verlas en la línea de tiempo (PL-08, parte 2)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Octavo paso de Planificación. Segunda mitad de PL-08: conecta lo que dejó listo el ticket 0008

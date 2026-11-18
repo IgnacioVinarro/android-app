@@ -1,7 +1,7 @@
 # Ticket 0014 – Alarma sonora con pantalla completa, posponer y descartar (PL-11)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 PL-11: "Tipos de alarma: notificación simple o alarma sonora con pantalla completa, con posponer y

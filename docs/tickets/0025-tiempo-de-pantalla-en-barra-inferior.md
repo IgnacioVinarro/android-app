@@ -1,7 +1,7 @@
 # Ticket 0025 – "Tiempo de pantalla" pasa a la barra inferior; "Ajustes" vuelve a abrirse desde "Hoy"
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Cambio pedido por el desarrollador, que **reemplaza el del ticket 0024** (Ajustes como quinto ícono):

@@ -1,7 +1,7 @@
 # Ticket 0020 – Huecos libres tocables para crear una tarea (PL-03)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 PL-03: "Mostrar los huecos libres entre bloques como espacio vacío tocable para crear una tarea ahí".

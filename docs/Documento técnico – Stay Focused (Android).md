@@ -34,7 +34,7 @@ Las versiones no se fijan en este documento: se usan las estables más recientes
 | Fechas | `java.time` | Fechas y horas (disponible desde Android 8.0) | Fase 1 |
 | Alarmas | AlarmManager | Alarmas exactas de tareas | Fase 1 |
 | Tareas periódicas | WorkManager | Reprogramar alarmas, generar recurrencias, revisar límites de uso | Fase 1 |
-| Gráficos | Una librería de gráficos para Compose (a elegir) | Estadísticas de finanzas, macros, progreso | Fase 2 |
+| Gráficos | Componentes propios con `Canvas` de Compose, sin librería (Vico exige Kotlin 2.4 / AGP 9; ticket 0027) | Estadísticas de finanzas, macros, progreso | Fase 2 |
 | Cámara y código de barras | CameraX y ML Kit de lectura de códigos | Escanear productos | Fase 3 |
 | Red | Cliente HTTP con serialización JSON | Consulta a Open Food Facts (y luego Supabase) | Fase 3 |
 | Audio | Media3 | Sesiones guiadas de meditación | Después del MVP |
@@ -469,7 +469,7 @@ Sigue las cinco fases de la hoja de ruta del documento funcional; acá se detall
 
 ### 13.3 Decisiones pendientes
 
-- [ ] Librería de gráficos para Compose (se decide al empezar la fase 2)
+- [x] Librería de gráficos para Compose: **ninguna, gráficos propios con Canvas** (ticket 0027)
 - [ ] ¿Cifrar la base de datos local (SQLCipher) o alcanza con el almacenamiento privado de la app?
 - [ ] ¿Adelantar el respaldo JSON básico a la fase 1, en vez de la 5?
 - [ ] ¿Separar la fase 4 en dos: música y tiempo de pantalla por un lado, sincronización y web por otro?

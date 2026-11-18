@@ -1,7 +1,7 @@
 # Ticket 0008 – Tareas recurrentes: datos + cálculo de ocurrencias (PL-08, parte 1)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Séptimo paso de Planificación. Primera mitad de PL-08 (tareas recurrentes): agrega a la

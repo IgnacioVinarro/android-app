@@ -1,7 +1,7 @@
 # Ticket 0017 – Tareas atrasadas: ver, reprogramar o llevar a la bandeja (PL-14)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 PL-14: "Tareas atrasadas: mostrar las no completadas y permitir reprogramarlas o llevarlas a la

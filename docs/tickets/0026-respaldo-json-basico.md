@@ -1,7 +1,7 @@
 # Ticket 0026 – Respaldo JSON básico (exportar e importar) en Ajustes
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Decisión pendiente de CLAUDE.md resuelta por el desarrollador: **adelantar un respaldo JSON básico a la

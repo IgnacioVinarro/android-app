@@ -1,7 +1,7 @@
 # Ticket 0022 – Lista de comprobación manual de la Fase 1 (Planificación)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 CLAUDE.md pide entregar la lista de comprobación manual cuando una fase se da por terminada. Este

@@ -1,7 +1,7 @@
 # Ticket 0021 – Widget de inicio con las próximas tareas y accesos rápidos (PL-16)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 PL-16: "Widget de pantalla de inicio con las próximas tareas y accesos rápidos". El documento funcional

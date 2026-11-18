@@ -1,7 +1,7 @@
 # Ticket 0018 – Vista semanal con navegación por día y resumen de carga (PL-12)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 PL-12: "Vista semanal con navegación por día y resumen de carga". El documento funcional no define

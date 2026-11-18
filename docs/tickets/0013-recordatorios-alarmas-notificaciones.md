@@ -1,7 +1,7 @@
 # Ticket 0013 – Recordatorios por tarea: programar, avisar y reprogramar (PL-10, parte 2)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Segunda mitad de PL-10. Se apoya en la tabla `reminder` y el formulario del ticket 0012. Acá los

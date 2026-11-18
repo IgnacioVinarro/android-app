@@ -27,7 +27,7 @@ Si algo de este archivo contradice a los documentos, mandan los documentos; avis
 ## Stack y parámetros
 
 - Kotlin, Jetpack Compose + Material 3, Navigation Compose, Corrutinas/Flow, Room, Hilt, DataStore, `java.time`, AlarmManager, WorkManager.
-- Más adelante: librería de gráficos (a decidir en fase 2), CameraX + ML Kit (fase 3), Media3 (post-MVP), Supabase (fase 4).
+- Gráficos: **sin librería, dibujados con `Canvas` de Compose** (decidido; ticket 0027). Más adelante: CameraX + ML Kit (fase 3), Media3 (post-MVP), Supabase (fase 4).
 - Android mínimo **8.0 (API 26)**; target y compile con la API estable más reciente.
 - Gradle con Kotlin DSL. Versiones en `libs.versions.toml` (usar las estables más recientes).
 - **Antes de agregar cualquier librería nueva, consultala con el desarrollador** y verificá su documentación oficial. Pocas librerías.
@@ -189,7 +189,6 @@ iOS, publicación en Google Play, red social, compras dentro de la app, asesoram
 
 ## Decisiones pendientes (no decidir solas; consultar)
 
-- Librería de gráficos para Compose (fase 2).
 - Cifrar la base local (SQLCipher) o alcanzar con el almacenamiento privado.
 - Adelantar un respaldo JSON básico a la fase 1.
 - Separar la fase 4 en dos.

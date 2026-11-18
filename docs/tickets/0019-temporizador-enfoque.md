@@ -1,7 +1,7 @@
 # Ticket 0019 – Temporizador de enfoque con pausa y aviso de fin (PL-13)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 PL-13: "Temporizador de enfoque para la tarea actual, con pausa y aviso de fin". El documento

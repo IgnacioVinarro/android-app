@@ -1,7 +1,7 @@
 # Ticket 0023 – "Dieta" pasa a ser una pestaña dentro de "Gimnasio" (cambio de navegación)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Cambio pedido por el desarrollador sobre la navegación de la app:

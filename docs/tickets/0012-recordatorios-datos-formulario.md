@@ -1,7 +1,7 @@
 # Ticket 0012 – Recordatorios por tarea: datos y formulario (PL-10, parte 1)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Primera mitad de PL-10 (recordatorios por tarea: "a la hora, X minutos antes, o varias por tarea").

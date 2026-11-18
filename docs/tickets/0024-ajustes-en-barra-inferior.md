@@ -1,7 +1,7 @@
 # Ticket 0024 – Quinto ícono "Ajustes" al final de la barra inferior (cambio de navegación)
 
 ## Estado
-En revisión
+Terminado
 
 > **Superado por el ticket 0025.** El desarrollador pidió revertir este cambio: Ajustes vuelve a ser un
 > destino secundario (se abre desde "Hoy") y el quinto ícono de la barra pasa a ser "Tiempo de pantalla".

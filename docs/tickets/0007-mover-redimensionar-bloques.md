@@ -1,7 +1,7 @@
 # Ticket 0007 – Mover y redimensionar bloques arrastrando (PL-07)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Sexto paso de Planificación. Permite arrastrar un bloque de tarea ya ubicado en la línea de
