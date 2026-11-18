@@ -103,6 +103,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.turbine)
+    testImplementation(libs.org.json) // solo pruebas: el org.json de Android es un esqueleto en tests unitarios
     testImplementation(libs.coroutines.test)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.rules)

@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.ignaciovinarro.stayfocused.core.backup.BackupDao
 import com.ignaciovinarro.stayfocused.planner.data.ReminderDao
 import com.ignaciovinarro.stayfocused.planner.data.ReminderEntity
 import com.ignaciovinarro.stayfocused.planner.data.SubtaskCompletionDao
@@ -50,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun reminderDao(): ReminderDao
     abstract fun subtaskDao(): SubtaskDao
     abstract fun subtaskCompletionDao(): SubtaskCompletionDao
+    abstract fun backupDao(): BackupDao
 }
 
 @Module
@@ -83,4 +85,7 @@ object DatabaseModule {
 
     @Provides
     fun provideSubtaskCompletionDao(database: AppDatabase): SubtaskCompletionDao = database.subtaskCompletionDao()
+
+    @Provides
+    fun provideBackupDao(database: AppDatabase): BackupDao = database.backupDao()
 }

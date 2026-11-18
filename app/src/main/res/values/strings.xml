@@ -222,4 +222,19 @@
     <string name="notification_task_starts_at">Empieza a las %1$s</string>
     <string name="notification_action_complete">Completar</string>
     <string name="notification_action_snooze">Posponer</string>
+    <!-- Respaldo de datos (ticket 0026) -->
+    <string name="backup_section_title">Respaldo de datos</string>
+    <string name="backup_section_description">Guardá todos tus datos en un archivo para no perderlos si cambiás de teléfono o reinstalás la app. Conviene exportar antes de cada actualización.</string>
+    <string name="backup_export_button">Exportar respaldo</string>
+    <string name="backup_import_button">Importar respaldo</string>
+    <string name="backup_working">Procesando…</string>
+    <string name="backup_import_confirm_title">¿Reemplazar todos los datos?</string>
+    <string name="backup_import_confirm_message">Al importar, se reemplazan todos los datos actuales por los del archivo. Esto no se puede deshacer.</string>
+    <string name="backup_import_confirm_action">Elegir archivo</string>
+    <string name="backup_export_done">Respaldo exportado</string>
+    <string name="backup_export_failed">No se pudo exportar el respaldo</string>
+    <string name="backup_import_done">Respaldo importado</string>
+    <string name="backup_import_done_alarms_pending">Respaldo importado, pero faltan permisos para reprogramar los avisos. Revisalos al editar una tarea.</string>
+    <string name="backup_import_invalid_file">El archivo no es un respaldo válido o es de una versión más nueva de la app. No se cambió ningún dato.</string>
+    <string name="backup_import_failed">No se pudo importar el respaldo</string>
 </resources>
