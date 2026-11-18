@@ -71,6 +71,33 @@ class FinanceDaoTest {
         assertThat(accountDao.observeAll().first().map { it.name }).containsExactly("Banco")
     }
 
+    @Test
+    fun cuenta_countTransactionsCuentaComoOrigenYComoDestinoEIgnoraBorradas() = runBlocking {
+        val a = accountDao.insert(cuenta("A"))
+        val b = accountDao.insert(cuenta("B"))
+        val c = accountDao.insert(cuenta("C"))
+        transactionDao.insert(gasto(a, null))
+        transactionDao.insert(
+            TransactionEntity(type = "TRANSFER", amount = 100, date = 19000, accountId = a, transferAccountId = b)
+        )
+        val borrada = transactionDao.insert(gasto(b, null))
+        transactionDao.softDelete(borrada, System.currentTimeMillis())
+
+        assertThat(accountDao.countTransactions(a)).isEqualTo(2)
+        assertThat(accountDao.countTransactions(b)).isEqualTo(1) // solo como destino; la borrada no cuenta
+        assertThat(accountDao.countTransactions(c)).isEqualTo(0)
+    }
+
+    @Test
+    fun cuenta_softDeleteLaSacaDeLaLista() = runBlocking {
+        val id = accountDao.insert(cuenta("Banco"))
+
+        accountDao.softDelete(id, System.currentTimeMillis())
+
+        assertThat(accountDao.getById(id)).isNull()
+        assertThat(accountDao.observeAll().first()).isEmpty()
+    }
+
     // --- categorías ---
 
     @Test

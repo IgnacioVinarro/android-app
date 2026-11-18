@@ -1,7 +1,7 @@
 # Ticket 0028 – Finanzas: datos + reglas de dominio (FI-01, FI-02, FI-04, FI-05, FI-06, parte 1)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Primer paso de la Fase 2. Crea la base de datos y las reglas puras de Finanzas: cuentas,

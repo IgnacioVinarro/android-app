@@ -17,13 +17,15 @@ object AccountModule {
         AccountRepositoryImpl(accountDao)
 }
 
-// Sin `delete` a propósito: qué hacer con las transacciones de una cuenta borrada es una decisión
-// pendiente (ticket 0028, notas).
 interface AccountRepository {
     fun observeAll(): Flow<List<AccountEntity>>
     suspend fun getById(id: Long): AccountEntity?
     suspend fun create(account: AccountEntity): Long
     suspend fun update(account: AccountEntity)
+
+    // Borra la cuenta (lógico) solo si no tiene transacciones (ni propias ni como destino de una
+    // transferencia). Devuelve `false`, sin borrar nada, si las tiene (ticket 0029).
+    suspend fun delete(id: Long): Boolean
 }
 
 class AccountRepositoryImpl(
@@ -38,5 +40,11 @@ class AccountRepositoryImpl(
 
     override suspend fun update(account: AccountEntity) {
         accountDao.update(account.copy(updatedAt = System.currentTimeMillis()))
+    }
+
+    override suspend fun delete(id: Long): Boolean {
+        if (accountDao.countTransactions(id) > 0) return false
+        accountDao.softDelete(id, System.currentTimeMillis())
+        return true
     }
 }

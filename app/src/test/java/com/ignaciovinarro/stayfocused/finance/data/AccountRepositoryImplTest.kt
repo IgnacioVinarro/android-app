@@ -43,6 +43,24 @@ class AccountRepositoryImplTest {
     }
 
     @Test
+    fun `delete borra la cuenta sin transacciones`() = runBlocking {
+        coEvery { dao.countTransactions(4L) } returns 0
+
+        assertEquals(true, repository.delete(4L))
+
+        coVerify { dao.softDelete(4L, any()) }
+    }
+
+    @Test
+    fun `delete no borra una cuenta con transacciones`() = runBlocking {
+        coEvery { dao.countTransactions(4L) } returns 2
+
+        assertEquals(false, repository.delete(4L))
+
+        coVerify(exactly = 0) { dao.softDelete(any(), any()) }
+    }
+
+    @Test
     fun `update actualiza updatedAt`() = runBlocking {
         repository.update(cuenta(updatedAt = 1L))
 

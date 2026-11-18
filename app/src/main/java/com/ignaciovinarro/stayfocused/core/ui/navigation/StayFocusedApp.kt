@@ -18,7 +18,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.ignaciovinarro.stayfocused.core.settings.ui.SettingsScreen
+import com.ignaciovinarro.stayfocused.finance.ui.AccountEditorScreen
 import com.ignaciovinarro.stayfocused.finance.ui.FinanceScreen
+import com.ignaciovinarro.stayfocused.finance.ui.TransactionEditorScreen
 import com.ignaciovinarro.stayfocused.meditation.ui.MeditationScreen
 import com.ignaciovinarro.stayfocused.planner.ui.CreateTaskScreen
 import com.ignaciovinarro.stayfocused.planner.ui.RoutineEditorScreen
@@ -30,6 +32,10 @@ import java.time.LocalDate
 private const val ROUTE_CREATE_TASK = "planner/task/{taskId}?date={date}&newDate={newDate}&start={start}&gap={gap}"
 private const val ROUTE_ROUTINES = "planner/routines"
 private const val ROUTE_ROUTINE_EDITOR = "planner/routines/editor/{routineId}"
+private const val ROUTE_ACCOUNT_EDITOR = "finance/accounts/editor/{accountId}"
+private const val ARG_ACCOUNT_ID = "accountId"
+private const val ROUTE_TRANSACTION_EDITOR = "finance/transactions/editor/{transactionId}"
+private const val ARG_TRANSACTION_ID = "transactionId"
 private const val ARG_TASK_ID = "taskId"
 private const val ARG_OCCURRENCE_DATE = "date"
 private const val ARG_NEW_DATE = "newDate"
@@ -48,6 +54,12 @@ private fun createTaskRoute(date: Long, startMinutes: Int = SIN_FECHA_DE_OCURREN
 private fun editTaskRoute(taskId: Long, occurrenceDate: Long): String = "planner/task/$taskId?date=$occurrenceDate"
 
 private fun routineEditorRoute(routineId: Long): String = "planner/routines/editor/$routineId"
+
+// 0 = cuenta nueva.
+private fun accountEditorRoute(accountId: Long): String = "finance/accounts/editor/$accountId"
+
+// 0 = movimiento nuevo.
+private fun transactionEditorRoute(transactionId: Long): String = "finance/transactions/editor/$transactionId"
 
 @Composable
 fun StayFocusedApp(launchRequest: AppLaunchRequest? = null, onLaunchRequestHandled: () -> Unit = {}) {
@@ -81,7 +93,14 @@ fun StayFocusedApp(launchRequest: AppLaunchRequest? = null, onLaunchRequestHandl
                     }
                 )
             }
-            composable(StayFocusedDestination.FINANCE.route) { FinanceScreen() }
+            composable(StayFocusedDestination.FINANCE.route) {
+                FinanceScreen(
+                    onAddAccount = { navController.navigate(accountEditorRoute(0L)) },
+                    onEditAccount = { accountId -> navController.navigate(accountEditorRoute(accountId)) },
+                    onAddTransaction = { navController.navigate(transactionEditorRoute(0L)) },
+                    onEditTransaction = { id -> navController.navigate(transactionEditorRoute(id)) }
+                )
+            }
             composable(StayFocusedDestination.GYM.route) { GymDietScreen() }
             composable(StayFocusedDestination.MEDITATION.route) { MeditationScreen() }
             composable(StayFocusedDestination.SCREEN_TIME.route) { ScreenTimeScreen() }
@@ -100,6 +119,26 @@ fun StayFocusedApp(launchRequest: AppLaunchRequest? = null, onLaunchRequestHandl
                 CreateTaskScreen(
                     onDone = { navController.popBackStack() },
                     onBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                ROUTE_ACCOUNT_EDITOR,
+                arguments = listOf(navArgument(ARG_ACCOUNT_ID) { type = NavType.LongType })
+            ) {
+                AccountEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                    onDeleted = { navController.popBackStack() }
+                )
+            }
+            composable(
+                ROUTE_TRANSACTION_EDITOR,
+                arguments = listOf(navArgument(ARG_TRANSACTION_ID) { type = NavType.LongType })
+            ) {
+                TransactionEditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() },
+                    onDeleted = { navController.popBackStack() }
                 )
             }
             composable(ROUTE_ROUTINES) {
