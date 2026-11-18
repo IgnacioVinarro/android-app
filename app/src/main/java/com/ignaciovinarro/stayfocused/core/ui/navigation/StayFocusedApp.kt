@@ -20,9 +20,11 @@ import androidx.navigation.navArgument
 import com.ignaciovinarro.stayfocused.core.settings.ui.SettingsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.AccountEditorScreen
 import com.ignaciovinarro.stayfocused.finance.domain.CategoryType
+import com.ignaciovinarro.stayfocused.finance.ui.BudgetsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.CategoryEditorScreen
 import com.ignaciovinarro.stayfocused.finance.ui.CategoryListScreen
 import com.ignaciovinarro.stayfocused.finance.ui.FinanceScreen
+import com.ignaciovinarro.stayfocused.finance.ui.StatisticsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.TagsScreen
 import com.ignaciovinarro.stayfocused.finance.ui.TransactionEditorScreen
 import com.ignaciovinarro.stayfocused.meditation.ui.MeditationScreen
@@ -40,6 +42,8 @@ private const val ROUTE_ACCOUNT_EDITOR = "finance/accounts/editor/{accountId}"
 private const val ARG_ACCOUNT_ID = "accountId"
 private const val ROUTE_TRANSACTION_EDITOR = "finance/transactions/editor/{transactionId}"
 private const val ARG_TRANSACTION_ID = "transactionId"
+private const val ROUTE_STATISTICS = "finance/statistics"
+private const val ROUTE_BUDGETS = "finance/budgets"
 private const val ROUTE_TAGS = "finance/tags"
 private const val ROUTE_CATEGORIES = "finance/categories"
 private const val ROUTE_CATEGORY_EDITOR = "finance/categories/editor/{categoryId}?type={type}"
@@ -113,9 +117,13 @@ fun StayFocusedApp(launchRequest: AppLaunchRequest? = null, onLaunchRequestHandl
                     onAddTransaction = { navController.navigate(transactionEditorRoute(0L)) },
                     onEditTransaction = { id -> navController.navigate(transactionEditorRoute(id)) },
                     onOpenCategories = { navController.navigate(ROUTE_CATEGORIES) },
-                    onOpenTags = { navController.navigate(ROUTE_TAGS) }
+                    onOpenTags = { navController.navigate(ROUTE_TAGS) },
+                    onOpenBudgets = { navController.navigate(ROUTE_BUDGETS) },
+                    onOpenStatistics = { navController.navigate(ROUTE_STATISTICS) }
                 )
             }
+            composable(ROUTE_STATISTICS) { StatisticsScreen(onBack = { navController.popBackStack() }) }
+            composable(ROUTE_BUDGETS) { BudgetsScreen(onBack = { navController.popBackStack() }) }
             composable(ROUTE_TAGS) { TagsScreen(onBack = { navController.popBackStack() }) }
             composable(ROUTE_CATEGORIES) {
                 CategoryListScreen(

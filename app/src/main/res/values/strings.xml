@@ -336,4 +336,35 @@
     <string name="tag_delete_confirm_title">¿Eliminar la etiqueta?</string>
     <string name="tag_delete_confirm_message">Se va a eliminar «%1$s» y se quita de todos los movimientos.</string>
     <string name="transaction_field_tags">Etiquetas (opcional)</string>
+
+    <!-- Finanzas: presupuestos (ticket 0034) -->
+    <string name="finance_menu_budgets">Presupuestos</string>
+    <string name="budgets_title">Presupuestos</string>
+    <string name="budgets_total">Total del mes</string>
+    <string name="budgets_no_limit">Sin presupuesto. Gastado: %1$s. Tocá para fijar un límite</string>
+    <string name="budgets_spent_of">%1$s de %2$s (%3$d %%)</string>
+    <string name="budgets_alert_warning">Llegaste al 80 % del presupuesto</string>
+    <string name="budgets_alert_reached">Llegaste al 100 % del presupuesto</string>
+    <string name="budgets_dialog_title">Presupuesto: %1$s</string>
+    <string name="budgets_field_limit">Límite mensual (ARS)</string>
+    <string name="budgets_dialog_hint">Rige desde este mes en adelante, hasta que lo cambies.</string>
+    <string name="a11y_budget_row_hint">Tocá para cambiar el límite</string>
+
+    <!-- Finanzas: estadísticas (ticket 0035) -->
+    <string name="finance_menu_statistics">Estadísticas</string>
+    <string name="statistics_title">Estadísticas</string>
+    <string name="statistics_summary">Resumen del mes</string>
+    <string name="statistics_income">Ingresos</string>
+    <string name="statistics_expense">Gastos</string>
+    <string name="statistics_savings">Ahorro</string>
+    <string name="statistics_by_category">Gasto por categoría</string>
+    <string name="statistics_no_expenses">Todavía no registraste gastos este mes.</string>
+    <string name="statistics_evolution">Gasto de los últimos meses</string>
+    <string name="statistics_no_comparison">Sin datos del mes anterior</string>
+    <string name="statistics_change_up">%1$d %% más que el mes anterior</string>
+    <string name="statistics_change_down">%1$d %% menos que el mes anterior</string>
+    <string name="statistics_change_same">Igual que el mes anterior</string>
+    <string name="a11y_statistics_summary_row">%1$s: %2$s. %3$s</string>
+    <string name="a11y_statistics_category_row">%1$s: %2$s, %3$d %% del gasto del mes</string>
+    <string name="a11y_statistics_chart">Gasto por mes: %1$s</string>
 </resources>

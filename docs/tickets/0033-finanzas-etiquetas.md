@@ -1,7 +1,7 @@
 # Ticket 0033 – Finanzas: gestión de etiquetas (FI-02, parte 2)
 
 ## Estado
-En revisión
+Terminado
 
 ## Descripción
 Pantalla para crear, renombrar y eliminar etiquetas (`validateTagName`), y selector de etiquetas

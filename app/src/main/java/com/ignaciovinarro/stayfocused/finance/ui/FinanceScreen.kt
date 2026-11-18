@@ -59,6 +59,8 @@ fun FinanceScreen(
     onEditTransaction: (transactionId: Long) -> Unit = {},
     onOpenCategories: () -> Unit = {},
     onOpenTags: () -> Unit = {},
+    onOpenBudgets: () -> Unit = {},
+    onOpenStatistics: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: FinanceViewModel = hiltViewModel()
 ) {
@@ -75,6 +77,20 @@ fun FinanceScreen(
                         Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.finance_menu_more))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.finance_menu_statistics)) },
+                            onClick = {
+                                menuOpen = false
+                                onOpenStatistics()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.finance_menu_budgets)) },
+                            onClick = {
+                                menuOpen = false
+                                onOpenBudgets()
+                            }
+                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.finance_menu_categories)) },
                             onClick = {
